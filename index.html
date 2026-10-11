@@ -814,93 +814,83 @@
   </div>
 
   <!-- PHOTO MEMORIES ALBUM MODAL (top-level overlay) -->
-  <div class="gallery-modal" id="galleryModal" aria-hidden="true" role="dialog" aria-label="Birthday Memories Photo Album">
+  <div class="gallery-modal" id="galleryModal" aria-hidden="true" role="dialog" aria-label="Birthday Memories Photo Album" hidden>
     <div class="gallery-backdrop" id="galleryBackdrop"></div>
-    
+    <div class="gallery-orb gallery-orb--a" aria-hidden="true"></div>
+    <div class="gallery-orb gallery-orb--b" aria-hidden="true"></div>
+    <div class="gallery-orb gallery-orb--c" aria-hidden="true"></div>
+
+    <div class="gallery-floaters" id="galleryFloaters" aria-hidden="true"></div>
+
     <div class="gallery-container">
       <button class="gallery-close" id="galleryClose" type="button" aria-label="Close memories album">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/>
         </svg>
       </button>
-      
-      <div class="polaroid-wrapper" id="polaroidWrapper">
-        <!-- Physical stack layers behind the card -->
-        <div class="polaroid-stack-layer polaroid-stack-layer--1" aria-hidden="true"></div>
-        <div class="polaroid-stack-layer polaroid-stack-layer--2" aria-hidden="true"></div>
 
-        <div class="polaroid-tape" aria-hidden="true">
-          <span class="tape-flower">&#x1F33B;</span>
-        </div>
-        
-        <div class="polaroid-card" id="polaroidCard" role="button" tabindex="0" aria-label="Polaroid photo memory. Tap to flip and read handwritten note.">
+      <p class="gallery-kicker" id="galleryKicker">A coin unlocked</p>
+      <h2 class="gallery-heading" id="galleryHeading">A Heart for You</h2>
+
+      <div class="polaroid-wrapper gallery-heart-stage" id="polaroidWrapper">
+        <div class="gallery-heart-glow" aria-hidden="true"></div>
+        <div class="gallery-heart-shadow gallery-heart-shadow--1" aria-hidden="true"></div>
+        <div class="gallery-heart-shadow gallery-heart-shadow--2" aria-hidden="true"></div>
+
+        <div class="polaroid-card gallery-heart-card" id="polaroidCard" role="button" tabindex="0" aria-label="Heart photo memory. Tap to flip and read the note.">
           <div class="polaroid-flip-badge" id="polaroidFlipBadge">
             <span class="flip-badge-icon">↺</span>
-            <span>Tap to flip note</span>
+            <span>Tap to flip</span>
           </div>
           <div class="polaroid-card-inner" id="polaroidCardInner">
-            <!-- Front Face: Photo and Caption -->
             <div class="polaroid-face polaroid-face--front">
-              <div class="polaroid-corner-clip" aria-hidden="true"></div>
-              <div class="polaroid-img-frame">
-                <img class="polaroid-img" id="polaroidImg" src="/photos/photo2.jpg" alt="Birthday memory" />
-                <div class="polaroid-glare" id="polaroidGlare" aria-hidden="true"></div>
-              </div>
-              
-              <div class="polaroid-footer">
-                <div class="polaroid-meta">
-                  <p class="polaroid-caption" id="polaroidCaption">Dancing with the ocean breeze &#x1F30A;&#x1F338;</p>
-                  <p class="polaroid-subnote" id="polaroidSubnote">Memories by the Shore &bull; Pure Bliss</p>
-                </div>
-                
-                <div class="polaroid-actions">
-                  <button class="polaroid-like-btn" id="polaroidLikeBtn" type="button" aria-label="Send love to this photo">
-                    <span class="like-heart">&#x1F496;</span>
-                    <span class="like-count" id="polaroidLikeCount">1</span>
-                  </button>
+              <div class="gallery-heart-shell">
+                <div class="gallery-heart-rim" aria-hidden="true"></div>
+                <div class="polaroid-img-frame gallery-heart-clip">
+                  <img class="polaroid-img" id="polaroidImg" src="/photos/FirstImage.png" alt="Birthday memory" />
+                  <div class="polaroid-glare" id="polaroidGlare" aria-hidden="true"></div>
                 </div>
               </div>
-              <div class="polaroid-stamp" id="polaroidStamp" aria-hidden="true">&#x1F33B; Seaside Sunshine</div>
             </div>
 
-            <!-- Back Face: Handwritten Memory Note -->
             <div class="polaroid-face polaroid-face--back">
-              <div class="polaroid-back-border"></div>
-              <div class="polaroid-back-header">
-                <span class="polaroid-back-flower">🌻</span>
-                <span class="polaroid-back-title">A Memory of Deva Sri</span>
-                <span class="polaroid-back-flower">🌻</span>
-              </div>
-              <p class="polaroid-back-date" id="polaroidBackDate">Deva Sri &bull; Golden Moments</p>
-              <div class="polaroid-back-divider">❦ &bull; ❦ &bull; ❦</div>
-              <p class="polaroid-back-text" id="polaroidBackText">
-                "Your radiant smile and genuine warmth light up every single room you enter. Never change who you are!"
-              </p>
-              <div class="polaroid-back-footer">
-                <p class="polaroid-back-sign">Happy Birthday Deva Sri ✦</p>
-                <span class="polaroid-back-flip-hint">Tap again to flip ↺</span>
+              <div class="gallery-heart-shell gallery-heart-shell--back">
+                <div class="gallery-heart-rim" aria-hidden="true"></div>
+                <div class="gallery-heart-note">
+                  <div class="polaroid-back-header">
+                    <span class="polaroid-back-title">A Memory That Stays</span>
+                  </div>
+                  <p class="polaroid-back-date" id="polaroidBackDate">Closest to our hearts</p>
+                  <div class="polaroid-back-divider">♥ · ♥ · ♥</div>
+                  <p class="polaroid-back-text" id="polaroidBackText">Some memories never fade, especially the ones closest to our hearts. 💗✨ Every picture holds a little piece of love, a moment worth remembering, and a feeling words can never explain. 🥹💕 No matter how much time passes, some memories stay in our hearts forever. ✨</p>
+                  <div class="polaroid-back-footer">
+                    <p class="polaroid-back-sign">With love ✦</p>
+                    <span class="polaroid-back-flip-hint">Tap heart to flip back</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Floating heart bursts container -->
+        <div class="gallery-caption" id="galleryCaptionBar">
+          <p class="polaroid-caption" id="polaroidCaption">Some bonds need no words, and some memories live forever in the heart. ❤️🐾✨</p>
+          <p class="polaroid-subnote" id="polaroidSubnote">Memory One • Closest to the Heart</p>
+          <span class="polaroid-stamp" id="polaroidStamp" hidden>Forever Bonds</span>
+        </div>
+
         <div class="polaroid-bursts" id="polaroidBursts" aria-hidden="true"></div>
       </div>
 
-      <!-- Navigation controls -->
-      <div class="gallery-controls">
+      <div class="gallery-controls" id="galleryControls">
         <button class="gallery-nav gallery-nav--prev" id="galleryPrev" type="button" aria-label="Previous photo">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
             <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" fill="currentColor"/>
           </svg>
         </button>
-        
+
         <div class="gallery-dots" id="galleryDots">
           <button class="gallery-dot is-active" data-index="0" aria-label="Photo 1" type="button"></button>
-          <button class="gallery-dot" data-index="1" aria-label="Photo 2" type="button"></button>
-          <button class="gallery-dot" data-index="2" aria-label="Photo 3" type="button"></button>
-          <button class="gallery-dot" data-index="3" aria-label="Photo 4" type="button"></button>
         </div>
 
         <button class="gallery-nav gallery-nav--next" id="galleryNext" type="button" aria-label="Next photo">
