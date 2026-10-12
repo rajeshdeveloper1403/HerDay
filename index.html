@@ -797,19 +797,81 @@
     </div>
   </main>
 
-  <!-- CARROM PHASE N — single placeholder slide (content later) -->
-  <div class="carrom-slide-modal" id="carromSlideModal" aria-hidden="true" hidden role="dialog" aria-label="A special moment">
-    <div class="carrom-slide-backdrop" id="carromSlideBackdrop"></div>
-    <div class="carrom-slide-card">
-      <button class="carrom-slide-close" id="carromSlideClose" type="button" aria-label="Continue">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
-      <p class="carrom-slide-eyebrow caveat-font">After N ✦</p>
-      <div class="carrom-slide-frame">
-        <img id="carromSlideImg" src="/color-palette.jpg" alt="Placeholder memory slide" />
+  <!-- CARROM PHASE N — Promise slides (3 stacked memories) -->
+  <div class="promise-modal" id="carromSlideModal" aria-hidden="true" hidden role="dialog" aria-label="I Promise">
+    <div class="promise-backdrop" id="carromSlideBackdrop" aria-hidden="true">
+      <div class="promise-curtain promise-curtain--l"></div>
+      <div class="promise-curtain promise-curtain--r"></div>
+      <div class="promise-orb promise-orb--a"></div>
+      <div class="promise-orb promise-orb--b"></div>
+      <div class="promise-orb promise-orb--c"></div>
+      <div class="promise-orb promise-orb--pink"></div>
+      <div class="promise-hang promise-hang--l" aria-hidden="true">
+        <span class="promise-chain"></span><span class="promise-pendant">♥</span>
+        <span class="promise-chain promise-chain--short"></span><span class="promise-pendant">♥</span>
       </div>
-      <p class="carrom-slide-caption" id="carromSlideCaption">A sweet moment for Anu — more photos coming soon 💕</p>
-      <button class="carrom-slide-continue" id="carromSlideContinue" type="button">Back to the Board</button>
+      <div class="promise-hang promise-hang--r" aria-hidden="true">
+        <span class="promise-chain"></span><span class="promise-pendant">♥</span>
+        <span class="promise-chain promise-chain--short"></span><span class="promise-pendant">♥</span>
+      </div>
+      <div class="promise-wire promise-wire--1" aria-hidden="true">♡</div>
+      <div class="promise-wire promise-wire--2" aria-hidden="true">♡</div>
+      <div class="promise-wire promise-wire--3" aria-hidden="true">♡</div>
+      <div class="promise-bloom promise-bloom--l"></div>
+      <div class="promise-bloom promise-bloom--r"></div>
+      <div class="promise-floaters" id="promiseFloaters"></div>
+    </div>
+
+    <button class="promise-close" id="carromSlideClose" type="button" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+
+    <div class="promise-stage" id="promiseStage">
+      <article class="promise-panel promise-panel--copy-left" data-enter="right" id="promisePanel1">
+        <div class="promise-copy" data-enter="right">
+          <span class="promise-copy__heart" aria-hidden="true">♥</span>
+          <p class="promise-caption">I Promise..</p>
+          <span class="promise-copy__rule" aria-hidden="true">— ♥ —</span>
+        </div>
+        <div class="promise-panel__media">
+          <img src="/photos/Slide1.jpg" alt="Hands held together" draggable="false" />
+        </div>
+      </article>
+
+      <article class="promise-panel promise-panel--copy-right" data-enter="left" id="promisePanel2">
+        <div class="promise-panel__media">
+          <img src="/photos/Slide2.jpg" alt="Pinky promise" draggable="false" />
+        </div>
+        <div class="promise-copy" data-enter="left">
+          <span class="promise-copy__heart" aria-hidden="true">♥</span>
+          <p class="promise-caption">I am always there for you</p>
+          <span class="promise-copy__rule" aria-hidden="true">— ♥ —</span>
+        </div>
+      </article>
+
+      <article class="promise-panel promise-panel--copy-left" data-enter="right" id="promisePanel3">
+        <div class="promise-copy" data-enter="right">
+          <span class="promise-copy__heart" aria-hidden="true">♥</span>
+          <p class="promise-caption">in your good and bad times..</p>
+          <span class="promise-copy__rule" aria-hidden="true">— ♥ —</span>
+        </div>
+        <div class="promise-panel__media">
+          <img src="/photos/Slide3.jpg" alt="Finger and thumb touch" draggable="false" />
+        </div>
+      </article>
+    </div>
+
+    <div class="promise-footer">
+      <span class="promise-flourish" aria-hidden="true">❧</span>
+      <button class="promise-continue" id="carromSlideContinue" type="button">
+        <span>Back to the Board</span>
+        <span class="promise-continue__arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14" focusable="false">
+            <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </button>
+      <span class="promise-flourish" aria-hidden="true">❧</span>
     </div>
   </div>
 
