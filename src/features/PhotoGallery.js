@@ -100,6 +100,38 @@ let curPhotoIdx = 0;
 let onGalleryCloseCb = null;
 let openTl = null;
 let autoHeartTimer = null;
+let photoSwapId = 0;
+let lastFloatTheme = null;
+let photosReady = null;
+
+function waitForImageReady(img) {
+  if (!img) return Promise.resolve();
+  if (typeof img.decode === 'function') {
+    return img.decode().catch(() => {});
+  }
+  if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      img.removeEventListener('load', done);
+      img.removeEventListener('error', done);
+      resolve();
+    };
+    img.addEventListener('load', done);
+    img.addEventListener('error', done);
+  });
+}
+
+function preloadPhotos() {
+  if (photosReady) return photosReady;
+  photosReady = Promise.all(
+    PHOTOS.map((p) => {
+      const img = new Image();
+      img.src = p.src;
+      return waitForImageReady(img);
+    })
+  );
+  return photosReady;
+}
 
 function renderCornerFloaters(themeKey) {
   if (!galleryFloaters) return;
@@ -137,7 +169,11 @@ function applyPhotoContent(p) {
     backText.textContent = String(p.backNote || '').replace(/\s*\n+\s*/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
-  renderCornerFloaters(p.floatTheme || 'bonds');
+  const theme = p.floatTheme || 'bonds';
+  if (theme !== lastFloatTheme) {
+    lastFloatTheme = theme;
+    renderCornerFloaters(theme);
+  }
 }
 
 function spawnAutoHeart() {
@@ -215,9 +251,9 @@ function playOpenTransition() {
   if (glow) gsap.set(glow, { autoAlpha: 0, scale: 0.6 });
 
   openTl = gsap.timeline({ defaults: { ease: 'power2.out' } });
-  openTl.to(galleryModal, { autoAlpha: 1, duration: 0.45 });
+  openTl.to(galleryModal, { autoAlpha: 1, duration: 0.32 });
   if (orbs.length) {
-    openTl.to(orbs, { autoAlpha: 0.55, scale: 1, duration: 0.7, stagger: 0.08 }, 0.05);
+    openTl.to(orbs, { autoAlpha: 0.55, scale: 1, duration: 0.5, stagger: 0.06 }, 0.04);
   }
   openTl.to(
     polaroidWrapper,
@@ -226,27 +262,27 @@ function playOpenTransition() {
       rotation: 0,
       y: 0,
       autoAlpha: 1,
-      duration: 0.95,
-      ease: 'back.out(1.55)',
+      duration: 0.62,
+      ease: 'back.out(1.25)',
     },
-    0.12
+    0.08
   );
   if (heartShell) {
     openTl.to(
       heartShell,
       {
         scale: 1.04,
-        duration: 0.22,
+        duration: 0.16,
         yoyo: true,
         repeat: 1,
         ease: 'power1.inOut',
       },
-      0.55
+      0.38
     );
   }
-  if (glow) openTl.to(glow, { autoAlpha: 1, scale: 1, duration: 0.6 }, 0.25);
-  if (galleryKicker) openTl.to(galleryKicker, { autoAlpha: 1, y: 0, duration: 0.4 }, 0.38);
-  if (galleryHeading) openTl.to(galleryHeading, { autoAlpha: 1, y: 0, duration: 0.45 }, 0.46);
+  if (glow) openTl.to(glow, { autoAlpha: 1, scale: 1, duration: 0.42 }, 0.16);
+  if (galleryKicker) openTl.to(galleryKicker, { autoAlpha: 1, y: 0, duration: 0.3 }, 0.26);
+  if (galleryHeading) openTl.to(galleryHeading, { autoAlpha: 1, y: 0, duration: 0.34 }, 0.32);
   if (floatItems.length) {
     openTl.to(
       floatItems,
@@ -254,14 +290,14 @@ function playOpenTransition() {
         autoAlpha: 0.75,
         scale: 1,
         y: 0,
-        duration: 0.55,
-        stagger: 0.05,
-        ease: 'back.out(1.4)',
+        duration: 0.4,
+        stagger: 0.035,
+        ease: 'back.out(1.3)',
       },
-      0.22
+      0.14
     );
   }
-  if (galleryControls) openTl.to(galleryControls, { autoAlpha: 1, y: 0, duration: 0.4 }, 0.58);
+  if (galleryControls) openTl.to(galleryControls, { autoAlpha: 1, y: 0, duration: 0.3 }, 0.4);
 }
 
 function playCloseTransition(onDone) {
@@ -305,36 +341,55 @@ export function renderPhoto(idx, direction = 0) {
   if (!polaroidImg) return;
   curPhotoIdx = (idx + PHOTOS.length) % PHOTOS.length;
   const p = PHOTOS[curPhotoIdx];
+  const swapId = ++photoSwapId;
 
   const tilt = (curPhotoIdx % 2 === 0 ? 1 : -1) * rand(0.8, 1.8);
 
   if (polaroidCard) polaroidCard.classList.remove('is-flipped');
 
-  if (direction !== 0) {
-    gsap.to(polaroidCard, {
-      x: direction * 55,
-      rotation: tilt + direction * 5,
-      opacity: 0.35,
-      scale: 0.94,
-      duration: 0.16,
-      ease: 'power2.in',
-      onComplete: () => {
-        applyPhotoContent(p);
-        gsap.fromTo(
-          polaroidCard,
-          { x: -direction * 45, rotation: tilt - direction * 3, opacity: 0.5, scale: 0.95 },
-          { x: 0, rotation: tilt, opacity: 1, scale: 1, duration: 0.32, ease: 'back.out(1.5)' }
-        );
-      },
-    });
-  } else {
-    applyPhotoContent(p);
-    gsap.to(polaroidCard, { x: 0, rotation: tilt, duration: 0.3, ease: 'power2.out' });
-  }
-
   if (galleryDots) {
     const dots = galleryDots.querySelectorAll('.gallery-dot');
     dots.forEach((d, i) => d.classList.toggle('is-active', i === curPhotoIdx));
+  }
+
+  if (direction !== 0 && polaroidCard) {
+    gsap.killTweensOf(polaroidCard);
+    gsap.to(polaroidCard, {
+      x: direction * 48,
+      rotation: tilt + direction * 4,
+      opacity: 0,
+      scale: 0.94,
+      duration: 0.12,
+      ease: 'power2.in',
+      onComplete: () => {
+        if (swapId !== photoSwapId) return;
+        applyPhotoContent(p);
+        waitForImageReady(polaroidImg).then(() => {
+          if (swapId !== photoSwapId) return;
+          gsap.fromTo(
+            polaroidCard,
+            { x: -direction * 36, rotation: tilt - direction * 2.5, opacity: 0, scale: 0.96 },
+            {
+              x: 0,
+              rotation: tilt,
+              opacity: 1,
+              scale: 1,
+              duration: 0.22,
+              ease: 'power2.out',
+              overwrite: 'auto',
+            }
+          );
+        });
+      },
+    });
+    return;
+  }
+
+  applyPhotoContent(p);
+  if (polaroidCard) {
+    gsap.killTweensOf(polaroidCard);
+    gsap.set(polaroidCard, { opacity: 1, x: 0, scale: 1 });
+    gsap.to(polaroidCard, { x: 0, rotation: tilt, duration: 0.25, ease: 'power2.out' });
   }
 }
 
@@ -414,6 +469,13 @@ export function openGallery(initialIdx = 0, { onClose } = {}) {
   galleryModal.setAttribute('aria-hidden', 'false');
   galleryModal.classList.add('is-open');
   galleryModal.style.display = 'flex';
+
+  // Ensure heart starts clean (no leftover swipe opacity/x from last visit)
+  if (polaroidCard) {
+    gsap.killTweensOf(polaroidCard);
+    gsap.set(polaroidCard, { opacity: 1, x: 0, scale: 1, rotation: 0, rotateX: 0, rotateY: 0 });
+  }
+
   renderPhoto(initialIdx);
   playOpenTransition();
   startAutoHeartFlow();
@@ -424,6 +486,8 @@ export function closeGallery(shouldPopHistory = true) {
   if (!galleryModal.classList.contains('is-open')) return false;
   if (shouldPopHistory) popModalHistory('gallery');
   stopAutoHeartFlow();
+  photoSwapId += 1;
+  if (polaroidCard) gsap.killTweensOf(polaroidCard);
 
   playCloseTransition(() => {
     galleryModal.classList.remove('is-open');
@@ -494,7 +558,10 @@ export function setupGallery() {
       e.stopPropagation();
       const dot = e.target.closest('.gallery-dot');
       if (dot && dot.dataset.index !== undefined) {
-        renderPhoto(parseInt(dot.dataset.index, 10));
+        const nextIdx = parseInt(dot.dataset.index, 10);
+        if (Number.isNaN(nextIdx) || nextIdx === curPhotoIdx) return;
+        const dir = nextIdx > curPhotoIdx ? 1 : -1;
+        renderPhoto(nextIdx, dir);
       }
     });
   }
@@ -534,11 +601,8 @@ export function setupGallery() {
 
   setupParallaxTilt();
 
-  // Warm the photo cache so swipes feel instant
-  PHOTOS.forEach((p) => {
-    const img = new Image();
-    img.src = p.src;
-  });
+  // Decode all memories up front so next/prev never flashes the previous photo
+  preloadPhotos();
 
   window.openMemories = () => openGallery(0);
 }
