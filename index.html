@@ -6,7 +6,8 @@
   <title>Happy Birthday</title>
   <meta name="description" content="A cinematic birthday film in four acts: a beating heart you open with a tap, a rush of colour, a kinetic wish, and a tree that blooms into a heart of petals." />
   <meta name="theme-color" content="#f7e7dc" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=cake" />
+  <link rel="apple-touch-icon" href="/favicon.png?v=cake" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,9 +19,8 @@
 </head>
 <body>
   <!-- BIRTHDAY SONG PLAYER TOGGLE -->
-  <button class="music-box-btn" id="musicBoxBtn" type="button" aria-label="Play Happy Birthday Song" title="Play Happy Birthday Song">
+  <button class="music-box-btn" id="musicBoxBtn" type="button" aria-label="Play music" title="Play music">
     <span class="music-box-icon" aria-hidden="true">&#127925;</span>
-    <span class="music-box-text">Birthday Song</span>
     <span class="music-box-bars" aria-hidden="true">
       <span class="bar bar--1"></span>
       <span class="bar bar--2"></span>
@@ -526,183 +526,41 @@
     <!-- The gold light that bridges the rose wish into the dawn of the tree. -->
     <div class="bloom" id="bloom" aria-hidden="true"></div>
 
-    <!-- ACT 4 — THE HAND-LETTERED WISH (over the tree) ------------------------ -->
+    <!-- ACT 4 — THE HAND-LETTERED WISH (under the heart bloom) ---------------- -->
     <div class="wish" id="wish" aria-hidden="true">
-      <div class="wish__decor" aria-hidden="true">
-        <span class="decor-flower">🌻</span>
-        <span class="decor-cake">🎂</span>
-        <span class="decor-flower">🌻</span>
-      </div>
-      <p class="wish__eyebrow" id="wEyebrow">and&hellip; make it count</p>
       <div class="wish__heroWrap">
         <h1 class="wish__hero" id="wHero">
           <span class="wish__title">Happy Birthday</span>
           <span class="wish__name">Anu</span>
         </h1>
       </div>
-      <span class="wish__rule" id="wRule"></span>
-      <p class="wish__sub" id="wSub">here&rsquo;s to a year that blooms with sunflowers &amp; sweetness &#x1F33B;&#x1F382;</p>
     </div>
 
-    <!-- CELEBRATORY BIRTHDAY CAKE & SUNFLOWER WISH (Act 4) -->
-    <div class="cake-wrapper" id="cakeWrapper" aria-hidden="true">
-      <div class="cake-card" id="cakeCard" role="button" tabindex="0" aria-label="Interactive Birthday Cake. Click to blow out the candles and make a wish!">
-        <div class="cake__prompt" id="cakePrompt">
-          <span class="prompt-icon">🎂</span> Tap to make a wish &amp; blow candles <span class="prompt-icon">🌻</span>
-        </div>
-        
-        <div class="cake-stage">
-          <svg class="cake-svg" viewBox="0 0 200 180" aria-hidden="true">
-            <defs>
-              <linearGradient id="cakeStandGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stop-color="#503967" />
-                <stop offset="50%"  stop-color="#97588D" />
-                <stop offset="100%" stop-color="#312651" />
-              </linearGradient>
-              <linearGradient id="tier1Grad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stop-color="#503967" />
-                <stop offset="50%"  stop-color="#97588D" />
-                <stop offset="100%" stop-color="#503967" />
-              </linearGradient>
-              <linearGradient id="tier2Grad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stop-color="#97588D" />
-                <stop offset="50%"  stop-color="#B97397" />
-                <stop offset="100%" stop-color="#DD9B9C" />
-              </linearGradient>
-              <linearGradient id="frostingWhite" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stop-color="#ffffff" />
-                <stop offset="100%" stop-color="#fdf4f5" />
-              </linearGradient>
-              <linearGradient id="candleGrad1" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stop-color="#B97397" />
-                <stop offset="50%"  stop-color="#DD9B9C" />
-                <stop offset="100%" stop-color="#B97397" />
-              </linearGradient>
-              <linearGradient id="candleGrad2" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stop-color="#97588D" />
-                <stop offset="50%"  stop-color="#fbd38d" />
-                <stop offset="100%" stop-color="#97588D" />
-              </linearGradient>
-              <radialGradient id="flameGrad" cx="50%" cy="65%" r="60%">
-                <stop offset="0%" stop-color="#ffffff" />
-                <stop offset="25%" stop-color="#ffe66d" />
-                <stop offset="65%" stop-color="#ff6b35" />
-                <stop offset="100%" stop-color="#d90429" />
-              </radialGradient>
-              <radialGradient id="flameAura" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="rgba(255,220,130,0.85)" />
-                <stop offset="50%" stop-color="rgba(255,160,80,0.35)" />
-                <stop offset="100%" stop-color="rgba(255,140,50,0)" />
-              </radialGradient>
-              <filter id="flameGlow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" />
-              </filter>
-            </defs>
-
-            <!-- Pedestal stand -->
-            <ellipse cx="100" cy="172" rx="46" ry="6" fill="rgba(80,20,35,0.22)" />
-            <path d="M72 166 Q100 162 128 166 L120 172 Q100 174 80 172 Z" fill="url(#cakeStandGrad)" />
-            <path d="M92 148 L94 166 Q100 167 106 166 L108 148 Z" fill="url(#cakeStandGrad)" />
-            <ellipse cx="100" cy="148" rx="68" ry="11" fill="url(#cakeStandGrad)" stroke="#cbb396" stroke-width="0.8" />
-            <ellipse cx="100" cy="147" rx="64" ry="9" fill="#fffaf5" />
-
-            <!-- Tier 1 (Bottom Tier) -->
-            <path d="M48 114 Q100 126 152 114 L152 142 Q100 156 48 142 Z" fill="url(#tier1Grad)" />
-            <ellipse cx="100" cy="114" rx="52" ry="10" fill="#ffe9ef" stroke="#f29bb4" stroke-width="0.5" />
-            
-            <!-- Bottom Tier Icing Drips -->
-            <path d="M48 114 Q54 126 60 116 Q66 130 74 116 Q82 128 92 117 Q102 131 112 116 Q122 127 132 116 Q142 129 152 114 Q100 124 48 114 Z" fill="url(#frostingWhite)" />
-            
-            <!-- Decorative mini sugar sunflower accents on bottom tier -->
-            <g transform="translate(62, 134) scale(0.18)">
-              <circle cx="0" cy="0" r="28" fill="#fca311" />
-              <circle cx="0" cy="0" r="14" fill="#582f0e" />
-            </g>
-            <g transform="translate(138, 134) scale(0.18)">
-              <circle cx="0" cy="0" r="28" fill="#fca311" />
-              <circle cx="0" cy="0" r="14" fill="#582f0e" />
-            </g>
-            <g transform="translate(100, 137) scale(0.22)">
-              <circle cx="0" cy="0" r="28" fill="#fca311" />
-              <circle cx="0" cy="0" r="14" fill="#582f0e" />
-            </g>
-
-            <!-- Tier 2 (Top Tier) -->
-            <path d="M64 82 Q100 92 136 82 L136 106 Q100 116 64 106 Z" fill="url(#tier2Grad)" />
-            <ellipse cx="100" cy="82" rx="36" ry="7.5" fill="#fff7eb" stroke="#f8c377" stroke-width="0.5" />
-            
-            <!-- Top Tier Drips -->
-            <path d="M64 82 Q72 94 80 84 Q88 96 98 84 Q108 97 118 84 Q128 94 136 82 Q100 91 64 82 Z" fill="url(#frostingWhite)" />
-
-            <!-- Decorative Sugar Sunflower on Top Tier -->
-            <g transform="translate(100, 84) scale(0.26)">
-              <ellipse cx="0" cy="-24" rx="6" ry="12" fill="#ffb703" />
-              <ellipse cx="17" cy="-17" rx="6" ry="12" transform="rotate(45 17 -17)" fill="#ffb703" />
-              <ellipse cx="24" cy="0" rx="6" ry="12" transform="rotate(90 24 0)" fill="#ffb703" />
-              <ellipse cx="17" cy="17" rx="6" ry="12" transform="rotate(135 17 17)" fill="#ffb703" />
-              <ellipse cx="0" cy="24" rx="6" ry="12" transform="rotate(180 0 24)" fill="#ffb703" />
-              <ellipse cx="-17" cy="17" rx="6" ry="12" transform="rotate(225 -17 17)" fill="#ffb703" />
-              <ellipse cx="-24" cy="0" rx="6" ry="12" transform="rotate(270 -24 0)" fill="#ffb703" />
-              <ellipse cx="-17" cy="-17" rx="6" ry="12" transform="rotate(315 -17 -17)" fill="#ffb703" />
-              <circle cx="0" cy="0" r="14" fill="#4a2810" />
-              <circle cx="0" cy="0" r="11" fill="#6f3b14" />
-            </g>
-
-            <!-- Candles -->
-            <!-- Candle 1 (Left) -->
-            <g class="cake-candle" id="candleLeft">
-              <rect x="76" y="52" width="6" height="28" rx="2" fill="url(#candleGrad1)" />
-              <line x1="79" y1="52" x2="79" y2="47" stroke="#3d2214" stroke-width="1.2" stroke-linecap="round" />
-              <g class="flame-group" id="flameLeft">
-                <ellipse cx="79" cy="40" rx="14" ry="16" fill="url(#flameAura)" />
-                <path class="flame-core" d="M79 30 C83 36, 85 41, 82 45 C80 47, 78 47, 76 45 C73 41, 75 36, 79 30 Z" fill="url(#flameGrad)" />
-                <ellipse cx="79" cy="44" rx="1.8" ry="1.2" fill="#fff" opacity="0.8" />
-              </g>
-              <path class="smoke-wisp" id="smokeLeft" d="M79 46 Q75 36 82 26 T77 14" fill="none" stroke="rgba(200,190,185,0.7)" stroke-width="1.6" stroke-linecap="round" opacity="0" />
-            </g>
-
-            <!-- Candle 2 (Center - Tallest) -->
-            <g class="cake-candle" id="candleCenter">
-              <rect x="97" y="44" width="6" height="34" rx="2" fill="url(#candleGrad2)" />
-              <line x1="100" y1="44" x2="100" y2="39" stroke="#3d2214" stroke-width="1.2" stroke-linecap="round" />
-              <g class="flame-group" id="flameCenter">
-                <ellipse cx="100" cy="31" rx="16" ry="18" fill="url(#flameAura)" />
-                <path class="flame-core" d="M100 20 C105 27, 107 33, 103 37 C101 39, 99 39, 97 37 C93 33, 95 27, 100 20 Z" fill="url(#flameGrad)" />
-                <ellipse cx="100" cy="36" rx="2" ry="1.4" fill="#fff" opacity="0.8" />
-              </g>
-              <path class="smoke-wisp" id="smokeCenter" d="M100 38 Q96 28 103 18 T98 6" fill="none" stroke="rgba(200,190,185,0.7)" stroke-width="1.6" stroke-linecap="round" opacity="0" />
-            </g>
-
-            <!-- Candle 3 (Right) -->
-            <g class="cake-candle" id="candleRight">
-              <rect x="118" y="52" width="6" height="28" rx="2" fill="url(#candleGrad1)" />
-              <line x1="121" y1="52" x2="121" y2="47" stroke="#3d2214" stroke-width="1.2" stroke-linecap="round" />
-              <g class="flame-group" id="flameRight">
-                <ellipse cx="121" cy="40" rx="14" ry="16" fill="url(#flameAura)" />
-                <path class="flame-core" d="M121 30 C125 36, 127 41, 124 45 C122 47, 120 47, 118 45 C115 41, 117 36, 121 30 Z" fill="url(#flameGrad)" />
-                <ellipse cx="121" cy="44" rx="1.8" ry="1.2" fill="#fff" opacity="0.8" />
-              </g>
-              <path class="smoke-wisp" id="smokeRight" d="M121 46 Q117 36 124 26 T119 14" fill="none" stroke="rgba(200,190,185,0.7)" stroke-width="1.6" stroke-linecap="round" opacity="0" />
-            </g>
+    <!-- HEART NEST: wipe heart petals to reveal 3D gift box -->
+    <div class="heart-gift-layer" id="heartGiftLayer" hidden aria-hidden="true">
+      <button class="heart-gift-btn" id="heartGiftBtn" type="button" aria-hidden="true" aria-label="Open your birthday gift" title="Open gift">
+        <span class="hgift" aria-hidden="true">
+          <span class="hgift__glow"></span>
+          <span class="hgift__shadow"></span>
+          <img class="hgift__img" src="/photos/Gift.png" alt="" draggable="false" />
+        </span>
+      </button>
+      <canvas class="heart-wipe-canvas" id="heartWipeCanvas" aria-label="Wipe the heart to see the surprise"></canvas>
+      <div class="heart-gift-hint" id="heartGiftHint" role="status">
+        <span class="heart-gift-hint__badge" aria-hidden="true">
+          <svg class="heart-gift-hint__hand" viewBox="0 0 48 48" width="28" height="28">
+            <path d="M18 28V14.5a2.5 2.5 0 0 1 5 0V26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M23 26V12.5a2.5 2.5 0 0 1 5 0V26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M28 26V13.5a2.5 2.5 0 0 1 5 0V27" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M33 27v-8a2.5 2.5 0 0 1 5 0v12.5c0 5.2-3.8 9.5-9 10.4l-3.2.6c-4.6.8-9.3-1.4-11.4-5.5L10 28.5a2.6 2.6 0 0 1 4.3-2.9L18 30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path class="heart-gift-hint__swipe" d="M8 20h10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
           </svg>
-        </div>
-
-        <!-- Wish granted toast -->
-        <div class="cake__toast" id="cakeToast">
-          <p class="toast__line1">&#x2728; Wish Made! &#x2728;</p>
-          <p class="toast__line2">May your year bloom bright with joy and sunflowers &#x1F33B;</p>
-          <div class="toast__btns">
-            <button class="toast__btn toast__btn--memories" id="toastMemoriesBtn" type="button">📸 Memories</button>
-            <button class="toast__btn toast__btn--gift" id="toastGiftBtn" type="button">🎁 Surprise Gift</button>
-            <button class="toast__btn toast__btn--lantern" id="toastLanternBtn" type="button">🏮 Release Lantern</button>
-            <button class="toast__btn toast__btn--stars" id="toastStarsBtn" type="button">✨ Constellation</button>
-            <button class="toast__btn toast__btn--letter" id="toastLetterBtn" type="button">💌 Read Letter</button>
-          </div>
-        </div>
+        </span>
+        <span class="heart-gift-hint__copy">
+          <strong>Swipe the heart</strong>
+          <span>to open the gift</span>
+        </span>
       </div>
-      
-      <!-- Sparkle & Confetti particle container -->
-      <div class="cake-confetti" id="cakeConfetti" aria-hidden="true"></div>
     </div>
 
     <!-- ACT 3 — HEART CARROM (between cake wish & blossom tree) ------------ -->
@@ -1310,6 +1168,109 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- VIDEO WISH → FINAL NOTE (Screen-2 style) -->
+  <div class="vwish-modal" id="videoWishModal" hidden aria-hidden="true" role="dialog" aria-label="A special birthday message for Anu">
+    <div class="vwish-backdrop" id="vwishBackdrop"></div>
+    <button class="vwish-back" id="vwishClose" type="button" aria-label="Back to birthday music">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M15.5 5.5L9 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back
+    </button>
+
+    <!-- Video only — framed portrait card -->
+    <div class="vwish-stage" id="vwishStage">
+      <div class="vwish-frame" aria-hidden="true">
+        <span class="vwish-frame__corner vwish-frame__corner--tl"></span>
+        <span class="vwish-frame__corner vwish-frame__corner--tr"></span>
+        <span class="vwish-frame__corner vwish-frame__corner--bl"></span>
+        <span class="vwish-frame__corner vwish-frame__corner--br"></span>
+      </div>
+      <div class="vwish-aurora" aria-hidden="true"></div>
+      <div class="vwish-motes" aria-hidden="true"></div>
+      <div class="vwish-floaters" aria-hidden="true">
+        <span class="vwish-floater vwish-floater--spark" style="--x:12%;--y:18%;--d:0s;--s:1;"></span>
+        <span class="vwish-floater vwish-floater--heart" style="--x:82%;--y:22%;--d:-1.2s;--s:.9;"></span>
+        <span class="vwish-floater vwish-floater--spark" style="--x:78%;--y:68%;--d:-2.4s;--s:1.1;"></span>
+        <span class="vwish-floater vwish-floater--heart" style="--x:16%;--y:72%;--d:-0.8s;--s:.85;"></span>
+        <span class="vwish-floater vwish-floater--spark" style="--x:48%;--y:10%;--d:-3.1s;--s:.75;"></span>
+        <span class="vwish-floater vwish-floater--heart" style="--x:88%;--y:48%;--d:-1.8s;--s:.7;"></span>
+        <span class="vwish-floater vwish-floater--spark" style="--x:8%;--y:42%;--d:-2.8s;--s:.95;"></span>
+        <span class="vwish-floater vwish-floater--spark" style="--x:62%;--y:86%;--d:-0.4s;--s:.8;"></span>
+      </div>
+
+      <div class="vwish-media">
+        <video
+          class="vwish-video"
+          id="vwishVideo"
+          playsinline
+          muted
+          preload="auto"
+          src="./videos/portraitvideo.mp4"
+          aria-label="Birthday wish video"
+        ></video>
+        <div class="vwish-cinema" id="vwishCinema" hidden aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <!-- Note is separate — centered on its own, never inside the video frame -->
+    <article class="vwish-note" id="vwishNote" hidden aria-hidden="true">
+      <div class="vwish-floaters vwish-floaters--note" aria-hidden="true">
+        <span class="vwish-floater vwish-floater--spark" style="--x:8%;--y:12%;--d:0s;--s:.85;"></span>
+        <span class="vwish-floater vwish-floater--heart" style="--x:90%;--y:16%;--d:-1.4s;--s:.75;"></span>
+        <span class="vwish-floater vwish-floater--spark" style="--x:92%;--y:58%;--d:-2.2s;--s:.9;"></span>
+        <span class="vwish-floater vwish-floater--heart" style="--x:6%;--y:62%;--d:-0.6s;--s:.7;"></span>
+        <span class="vwish-floater vwish-floater--spark" style="--x:14%;--y:88%;--d:-3s;--s:.8;"></span>
+        <span class="vwish-floater vwish-floater--heart" style="--x:86%;--y:84%;--d:-1.9s;--s:.65;"></span>
+        <span class="vwish-floater vwish-floater--spark" style="--x:50%;--y:4%;--d:-2.6s;--s:.7;"></span>
+      </div>
+      <div class="vwish-note__seal" aria-hidden="true">💌</div>
+      <p class="vwish-note__eyebrow">for you, always</p>
+      <h2 class="vwish-note__title">Happy Birthday, Anusiya!</h2>
+      <div class="vwish-note__scroll">
+        <p class="vwish-note__body">Unakkaga enna ezhuthuradhu-nu romba neram yosichen...</p>
+        <p class="vwish-note__body">It&rsquo;s one special birthday for me. ❤️</p>
+        <p class="vwish-note__body">Adhanala, indha birthday-ku unakkaga konjam different-ah edhavadhu panna thonuchu. 🌻</p>
+        <p class="vwish-note__body">Adhanala dhaan indha chinna surprise unakkaga... but adhu unakke therinjiduchu 😅🥰</p>
+        <p class="vwish-note__body">Idhu periya vishayama irukkaama irukkalam.<br>Perfect-ah kuda irukkaama irukkalam.</p>
+        <p class="vwish-note__body">Aana idha pannumbodhu, oru oru chinna detail-um yosichu dhaan pannen.</p>
+        <p class="vwish-note__body">Yenna na...</p>
+        <p class="vwish-note__body">Naam namakku pidichavangalukaga edukura chinna chinna efforts-kum oru thani meaning irukkum. ❤️✨</p>
+        <p class="vwish-note__body">Unna pathi yosikumbodhu, enakku periya moments dhaan first-ah nyabagam varadhu.</p>
+        <p class="vwish-note__body">Namma random conversations...<br>Namma silly talks... ☺️<br>Summa edhavadhu pesikitte irundha moments...<br>Reason-e illaama serndhu siricha moments... 😄<br>Sometimes pesama irundhaalum comfortable-ah feel panna moments... 🤍</p>
+        <p class="vwish-note__body">Idhellam mathavangalukku normal-ah irukkalam.</p>
+        <p class="vwish-note__body">Aana enakku mattum konjam special-ah feel aachi 😅❤️</p>
+        <p class="vwish-note__body">Eppo idhellam nadandhuchu-nu enakkum theriyala...</p>
+        <p class="vwish-note__body">Aana unkitta pesuradhu konjam konjam-ah oru habit aayiduchu.</p>
+        <p class="vwish-note__body">Un message vandha udane, theriyama smile panradhu kooda oru habit aayiduchu. 😊</p>
+        <p class="vwish-note__body">Nee illaama oru day irundha, adhu konjam different-ah feel aagudhu.</p>
+        <p class="vwish-note__body">Idhellam naan solla vendiya vishayama-nu kooda theriyala...</p>
+        <p class="vwish-note__body">Naan en feelings ellathayum open-ah solla therinja aal illa.</p>
+        <p class="vwish-note__body">Sila feelings-ku words-e kidaiyadhu.<br>Sila vishayangalai sollaama irukkaradhula kooda oru azhagu irukkum. 🌙</p>
+        <p class="vwish-note__body">Adhanala...</p>
+        <p class="vwish-note__body">Naan sollaama vittadhu konjamavadhu indha message moolama unakku puriya vaikkum-nu namburen. ❤️</p>
+        <p class="vwish-note__body">Nee eppovume happy-ah irukkanum. 😊</p>
+        <p class="vwish-note__body">Nee edhukkaga work pannitu irukkiyo, andha ellame unakku kidaikkanum. ✨</p>
+        <p class="vwish-note__body">Neraya sirikkanum. 😁<br>Neraya beautiful memories create pannanum. 🌸</p>
+        <p class="vwish-note__body">Andha memories-la...</p>
+        <p class="vwish-note__body">Enakkum konjam place irundha, adha vida happy-ah irukka enakku vera edhuvum thevai illa. ❤️🥹</p>
+        <p class="vwish-note__body">One day nee indha birthday-ah thirumbi paakumbodhu...</p>
+        <p class="vwish-note__body">Indha little surprise unna oru vishayatha nyabagam paduthanum...</p>
+        <p class="vwish-note__body">Yaaro oruthar unakkaga konjam extra time eduthu, ovvoru chinna detail-um yosichu idhellam pannirukanga... 🌻❤️</p>
+        <p class="vwish-note__body">Yenna na, nee avangalukku just another person illa. 🫶🏻❤️</p>
+        <p class="vwish-note__body">Adhukku mela naan edhuvum sollala...</p>
+        <p class="vwish-note__body">Sila vishayangalai explain pannaama purinjukaradhu dhaan romba azhaga irukkum. 😉🤍</p>
+        <p class="vwish-note__body">Keep smiling. 😊</p>
+        <p class="vwish-note__body">Always ipdiye crazy, cute, jolly and wonderful-ah iru. 🤗❤️</p>
+        <p class="vwish-note__body">And...</p>
+        <p class="vwish-note__body">En life-la oru beautiful memory-ah irundhadhukku thank you. 🤍✨</p>
+        <p class="vwish-note__body">Innum neraya conversations...<br>Innum neraya silly moments...<br>Innum neraya laughs...</p>
+        <p class="vwish-note__wishes">And hopefully, innum neraya memories — NAMMODADHU. ❤️🌻✨</p>
+      </div>
+      <p class="vwish-note__sign">— forever yours</p>
+    </article>
   </div>
 
   <!-- COSMIC STAR CONSTELLATION OVERLAY -->

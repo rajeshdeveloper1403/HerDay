@@ -1,29 +1,27 @@
 /* ============================================================
-   FEATURE: CELEBRATION CAKE & CONFETTI CANNON
-   Blowing candles, confetti explosion, toast action buttons.
+   FEATURE: FINALE ACTION DOCK + OPTIONAL CONFETTI
+   Wires Memories / Gift / Lantern / Stars / Letter openers.
+   (Act 4 cake UI removed; confetti host kept for bursts.)
    ============================================================ */
 import gsap from 'gsap';
 import { $, rand, pick } from '../core/utils.js';
-import { cue } from '../core/audio.js';
 
-let cakeCard, cakeWrapper, cakeConfetti;
-let cakeBlown = false;
+let cakeConfetti;
 let launchFireworksCallback = null;
 let modalOpenerCallbacks = {};
+let fireworksArmed = false;
 
 export function resetCake() {
-  cakeBlown = false;
-  if (cakeCard) {
-    cakeCard.classList.remove('is-blown');
-    cakeCard.setAttribute('aria-label', 'Interactive Birthday Cake. Click to blow out the candles and make a wish!');
-  }
+  fireworksArmed = false;
   if (cakeConfetti) cakeConfetti.innerHTML = '';
 }
 
-export function spawnConfetti() {
-  if (!cakeConfetti || !cakeCard) return;
+export function spawnConfetti(originEl) {
+  if (!cakeConfetti) return;
   cakeConfetti.innerHTML = '';
-  const rect = cakeCard.getBoundingClientRect();
+  const rect = originEl
+    ? originEl.getBoundingClientRect()
+    : { left: window.innerWidth / 2, top: window.innerHeight * 0.45, width: 0, height: 0 };
   const ox = rect.left + rect.width / 2;
   const oy = rect.top + rect.height * 0.45;
 
@@ -61,77 +59,18 @@ export function spawnConfetti() {
       },
     });
   }
-
-  // Celebratory icons
-  const icons = ['🌻', '🎂', '✨', '💖', '🎉', '🌻', '✨'];
-  const iconCount = window.innerWidth <= 768 ? 7 : 12;
-  for (let i = 0; i < iconCount; i++) {
-    const span = document.createElement('span');
-    span.className = 'cake-burst-icon';
-    span.textContent = icons[i % icons.length];
-    span.style.left = `${ox}px`;
-    span.style.top = `${oy}px`;
-    cakeConfetti.appendChild(span);
-
-    const ang = rand(-Math.PI * 0.85, -Math.PI * 0.15);
-    const dist = rand(80, 200);
-    const duration = rand(1.4, 2.0);
-
-    gsap.to(span, {
-      x: Math.cos(ang) * dist + rand(-20, 20),
-      y: Math.sin(ang) * dist - rand(10, 40),
-      scale: rand(1.1, 1.6),
-      rotation: rand(-40, 40),
-      duration: duration * 0.45,
-      ease: 'power2.out',
-      onComplete: () => span.remove(),
-    });
-    gsap.to(span, {
-      y: `+=${rand(60, 120)}`,
-      opacity: 0,
-      duration: duration * 0.55,
-      delay: duration * 0.45,
-      ease: 'power1.in',
-    });
-  }
 }
 
-export function blowCandles() {
-  if (cakeBlown) {
-    if (modalOpenerCallbacks.openGallery) modalOpenerCallbacks.openGallery(0);
-    return;
-  }
-  cakeBlown = true;
-  cue('candles');
-  if (cakeCard) {
-    cakeCard.classList.add('is-blown');
-    cakeCard.setAttribute('aria-label', 'Candles blown out! Click to view memories.');
-  }
-  spawnConfetti();
+export function celebrateFinale() {
+  if (fireworksArmed) return;
+  fireworksArmed = true;
+  spawnConfetti($('wish'));
   if (launchFireworksCallback) launchFireworksCallback();
   if (navigator.vibrate) navigator.vibrate([60, 40, 100]);
 }
 
-export function setupCake(options = {}) {
-  cakeCard = $('cakeCard');
-  cakeWrapper = $('cakeWrapper');
-  cakeConfetti = $('cakeConfetti');
-  launchFireworksCallback = options.launchFireworks;
-  modalOpenerCallbacks = options.modalOpeners || {};
-
-  if (!cakeCard) return;
-  cakeCard.addEventListener('click', blowCandles);
-  cakeCard.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      blowCandles();
-    }
-  });
-
-  const tMem = $('toastMemoriesBtn');
-  if (tMem && modalOpenerCallbacks.openGallery) {
-    tMem.addEventListener('click', (e) => { e.stopPropagation(); modalOpenerCallbacks.openGallery(0); });
-  }
+function wireModalButtons() {
+  // Memories is wired by PhotoGallery via #toastMemoriesBtn
   const tGift = $('toastGiftBtn');
   if (tGift && modalOpenerCallbacks.openGift) {
     tGift.addEventListener('click', (e) => { e.stopPropagation(); modalOpenerCallbacks.openGift(); });
@@ -148,4 +87,11 @@ export function setupCake(options = {}) {
   if (tLet && modalOpenerCallbacks.openLetter) {
     tLet.addEventListener('click', (e) => { e.stopPropagation(); modalOpenerCallbacks.openLetter(); });
   }
+}
+
+export function setupCake(options = {}) {
+  cakeConfetti = $('cakeConfetti');
+  launchFireworksCallback = options.launchFireworks;
+  modalOpenerCallbacks = options.modalOpeners || {};
+  wireModalButtons();
 }

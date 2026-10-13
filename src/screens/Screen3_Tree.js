@@ -1,7 +1,7 @@
 /* ============================================================
-   SCREEN 3 COMPONENT — ACT 4: THE BLOOMING BLOSSOM TREE CANVAS
-   2D canvas engine: growing trunk, fractal branches, lit blossoms,
-   meadow sunflowers, falling petals, godrays, and golden dawn.
+   SCREEN 3 COMPONENT — ACT 4: CENTERED HEART BLOOM CANVAS
+   Heart-of-hearts bloom, dense bottom sunflower bed, floating
+   hearts/roses/flowers/sparkles. No trunk/branches.
    ============================================================ */
 import { $, rand, pick, clamp, clamp01, lerp, easeOutCubic, easeOutBack, shade } from '../core/utils.js';
 import { cue } from '../core/audio.js';
@@ -13,31 +13,48 @@ const BLOSSOM = [
   { c0: '#b8a3cb', c1: '#503967' }, // Royal Twilight Violet
   { c0: '#fceced', c1: '#B97397' }, // Petal Pearl
   { c0: '#edd1e1', c1: '#DD9B9C' }, // Rose Quartz
+  { c0: '#ffe0e6', c1: '#e11d48' }, // True Red
+  { c0: '#ffc9d4', c1: '#be123c' }, // Deep Crimson
+  { c0: '#fff1f3', c1: '#f43f5e' }, // Bright Rose Red
 ];
 
+/** Outer shell stays forever — heart shape never collapses. */
+const HEART_RIM_KEEP = 0.88;
+/** Sweep opens this tight center; gift sits nestled with almost no hollow. */
+const HEART_GIFT_ZONE = 0.20;
+/** Red blossom indices (True Red / Deep Crimson / Bright Rose Red). */
+const RED_BLOSSOM = [6, 7, 8];
+
+function pickBlossomIdx() {
+  // Keep existing palette, but bias so reds show clearly (~1 in 3)
+  if (Math.random() < 0.34) return RED_BLOSSOM[(Math.random() * RED_BLOSSOM.length) | 0];
+  return (Math.random() * BLOSSOM.length) | 0;
+}
+
 const T = {
-  trunkStart: 0.10,
-  branchSpan: 1.80,
-  bloomT0:    1.25,
+  bloomT0:    0.35,
   bloomSpan:  2.00,
-  petalT0:    2.45,
-  noteStart:  0.45,
-  done:       4.60,
+  petalT0:    1.85,
+  noteStart:  1.55,
+  done:       4.20,
 };
 
 const SS = 168;
 
-let canvas, ctx, wishEl, cakeWrapper;
+let canvas, ctx, wishEl;
 let W = 0, H = 0, dpr = 1;
 let cx = 0, cy = 0, rx = 0, ry = 0, groundY = 0;
-let branches = [], hearts = [], petals = [], rested = [], orbs = [], floaters = [], twinkles = [], sunflowers = [];
-let bgGrad = null, glowGrad = null, groundGrad = null;
+let hearts = [], petals = [], rested = [], orbs = [], floaters = [], twinkles = [], sunflowers = [];
+let bgGrad = null, groundGrad = null;
 let heartPoly = null;
 let SPR = { crisp: [], soft: [] }, BOKEH = [], SPARKLE = null;
+let ROSE = [], FLOWER = [];
 let SUNFLOWER = { crisp: null, soft: null }, SUNFLOWER_PETAL = null;
 
 let treeStartT = 0, treeLastT = 0, treeRAF = 0, lastPetal = 0, replayArmed = false;
 let armReplayCallback = null;
+let onWishShownCallback = null;
+let wishShown = false;
 
 function heartShape(c, x, top, w, h) {
   c.beginPath();
@@ -106,6 +123,80 @@ function makeSparkle() {
     c.moveTo(0, -m); c.quadraticCurveTo(0, 0, m, 0); c.quadraticCurveTo(0, 0, 0, m); c.quadraticCurveTo(0, 0, -m, 0); c.quadraticCurveTo(0, 0, 0, -m);
     c.fill(); c.rotate(Math.PI / 4); c.scale(0.5, 0.5);
   }
+  return cv;
+}
+
+function makeRose(c0, c1) {
+  const S = SS;
+  const cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const c = cv.getContext('2d');
+  const mid = S / 2;
+  c.save();
+  c.shadowColor = 'rgba(120, 30, 60, 0.28)';
+  c.shadowBlur = S * 0.06;
+  c.shadowOffsetY = S * 0.03;
+  for (let layer = 0; layer < 4; layer++) {
+    const petals = 6 + layer;
+    const rOut = S * (0.42 - layer * 0.06);
+    const rIn = rOut * 0.42;
+    for (let i = 0; i < petals; i++) {
+      const ang = (i / petals) * Math.PI * 2 + layer * 0.35;
+      c.save();
+      c.translate(mid, mid);
+      c.rotate(ang);
+      c.beginPath();
+      c.moveTo(0, rIn * 0.2);
+      c.quadraticCurveTo(-rOut * 0.38, (rIn + rOut) * 0.42, 0, rOut);
+      c.quadraticCurveTo(rOut * 0.38, (rIn + rOut) * 0.42, 0, rIn * 0.2);
+      const g = c.createLinearGradient(0, rIn, 0, rOut);
+      g.addColorStop(0, c0);
+      g.addColorStop(0.55, c1);
+      g.addColorStop(1, shade(c1, -18));
+      c.fillStyle = g;
+      c.fill();
+      c.restore();
+    }
+  }
+  c.beginPath();
+  c.arc(mid, mid, S * 0.07, 0, Math.PI * 2);
+  c.fillStyle = shade(c1, -28);
+  c.fill();
+  c.restore();
+  return cv;
+}
+
+function makeFlower(c0, c1) {
+  const S = SS;
+  const cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const c = cv.getContext('2d');
+  const mid = S / 2;
+  const petals = 7;
+  c.save();
+  c.shadowColor = 'rgba(100, 40, 90, 0.25)';
+  c.shadowBlur = S * 0.05;
+  for (let i = 0; i < petals; i++) {
+    const ang = (i / petals) * Math.PI * 2;
+    c.save();
+    c.translate(mid, mid);
+    c.rotate(ang);
+    c.beginPath();
+    c.ellipse(0, -S * 0.22, S * 0.11, S * 0.22, 0, 0, Math.PI * 2);
+    const g = c.createLinearGradient(0, 0, 0, -S * 0.4);
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c0);
+    c.fillStyle = g;
+    c.fill();
+    c.restore();
+  }
+  const dg = c.createRadialGradient(mid, mid, 0, mid, mid, S * 0.11);
+  dg.addColorStop(0, '#fff6d8');
+  dg.addColorStop(0.55, '#f5c16c');
+  dg.addColorStop(1, '#d97706');
+  c.beginPath();
+  c.arc(mid, mid, S * 0.11, 0, Math.PI * 2);
+  c.fillStyle = dg;
+  c.fill();
+  c.restore();
   return cv;
 }
 
@@ -222,6 +313,18 @@ function makeSunflowerPetal() {
 
 export function buildSprites() {
   SPR = { crisp: BLOSSOM.map((b) => makeBlossom(b, false)), soft: BLOSSOM.map((b) => makeBlossom(b, true)) };
+  ROSE = [
+    makeRose('#ffe0ea', '#e85a83'),
+    makeRose('#ffd0e0', '#c41f52'),
+    makeRose('#f5d0e8', '#97588D'),
+    makeRose('#ffe8f0', '#DD9B9C'),
+  ];
+  FLOWER = [
+    makeFlower('#fff0f6', '#ff8fb0'),
+    makeFlower('#fce7f3', '#B97397'),
+    makeFlower('#f3e8ff', '#a78bfa'),
+    makeFlower('#fff7ed', '#f9a8d4'),
+  ];
   SUNFLOWER = { crisp: makeSunflowerHead(false), soft: makeSunflowerHead(true) };
   SUNFLOWER_PETAL = makeSunflowerPetal();
   BOKEH = [makeBokeh('221,155,156'), makeBokeh('185,115,151'), makeBokeh('151,88,141'), makeBokeh('80,57,103'), makeBokeh('250,228,229')];
@@ -260,28 +363,23 @@ function pointInPoly(x, y) {
   return inside;
 }
 
-const quad = (b, t) => {
-  const m = 1 - t, a = m * m, k = 2 * m * t, d = t * t;
-  return { x: a * b.x1 + k * b.cx + d * b.x2, y: a * b.y1 + k * b.cy + d * b.y2 };
-};
-
-function barkGrad(x1, y1, x2, y2, depth) {
-  const g = ctx.createLinearGradient(x1, y1, x2, y2);
-  g.addColorStop(0, `hsl(278 28% ${24 + depth * 3}%)`);
-  g.addColorStop(1, `hsl(276 26% ${38 + depth * 5}%)`);
-  return g;
-}
-
 export function buildScene() {
-  branches = []; hearts = []; petals = []; rested = []; twinkles = []; orbs = []; floaters = []; sunflowers = [];
+  hearts = []; petals = []; rested = []; twinkles = []; orbs = []; floaters = []; sunflowers = [];
   buildHeartPoly();
 
+  const isMobile = W <= 768;
+  const isShort = H <= 640;
   const wide = W / H > 1.2;
-  cx = W * (wide ? 0.57 : 0.5);
-  cy = H * (wide ? 0.37 : 0.40);
-  ry = Math.min(H * (wide ? 0.33 : 0.28), W * 0.31);
-  rx = ry * 1.16;
-  groundY = H * (wide ? 0.93 : 0.94);
+
+  // Centered heart bloom — solid silhouette, sized to leave room for dedication below
+  cx = W * 0.5;
+  cy = H * (isShort ? 0.26 : isMobile ? 0.28 : 0.29);
+  ry = Math.min(
+    H * (isShort ? 0.20 : isMobile ? 0.22 : wide ? 0.24 : 0.23),
+    W * (isMobile ? 0.34 : 0.26)
+  );
+  rx = ry * 1.12;
+  groundY = H;
 
   bgGrad = ctx.createLinearGradient(0, 0, 0, H);
   bgGrad.addColorStop(0, '#1c1530');
@@ -289,11 +387,7 @@ export function buildScene() {
   bgGrad.addColorStop(0.65, '#503967');
   bgGrad.addColorStop(0.88, '#97588D');
   bgGrad.addColorStop(1, '#B97397');
-  glowGrad = ctx.createRadialGradient(cx, cy, ry * 0.1, cx, cy, ry * 1.55);
-  glowGrad.addColorStop(0, 'rgba(221,155,156,0.68)');
-  glowGrad.addColorStop(0.48, 'rgba(185,115,151,0.28)');
-  glowGrad.addColorStop(1, 'rgba(80,57,103,0)');
-  groundGrad = ctx.createRadialGradient(cx, H * 1.02, ry * 0.2, cx, H * 1.02, ry * 1.6);
+  groundGrad = ctx.createRadialGradient(cx, H * 1.02, Math.max(W, H) * 0.15, cx, H * 1.02, Math.max(W, H) * 0.7);
   groundGrad.addColorStop(0, 'rgba(221,155,156,0.48)');
   groundGrad.addColorStop(0.5, 'rgba(185,115,151,0.20)');
   groundGrad.addColorStop(1, 'rgba(49,38,81,0)');
@@ -306,107 +400,143 @@ export function buildScene() {
     });
   }
 
-  const FN = wide ? 18 : 15;
-  for (let i = 0; i < FN; i++) {
+  // Ambient sky floaters: hearts, roses, flowers, sparkles (no sunflower leaves)
+  const floaterCount = isMobile ? 22 : wide ? 36 : 30;
+  const kinds = ['heart', 'heart', 'rose', 'rose', 'flower', 'flower', 'sparkle', 'sparkle'];
+  for (let i = 0; i < floaterCount; i++) {
+    const kind = kinds[i % kinds.length];
     const depth = Math.random();
+    const minSize = Math.min(W, H);
+    let box;
+    if (kind === 'sparkle') box = lerp(minSize * 0.018, minSize * 0.04, depth);
+    else if (kind === 'heart') box = lerp(minSize * 0.028, minSize * 0.065, depth);
+    else box = lerp(minSize * 0.032, minSize * 0.072, depth);
+
     floaters.push({
-      x: rand(0, W), y: rand(-H * 0.1, H * 1.1), depth,
-      idx: (Math.random() * BLOSSOM.length) | 0,
-      box: lerp(Math.min(W, H) * 0.025, Math.min(W, H) * 0.075, depth),
-      vy: lerp(7, 20, depth), sway: rand(8, 22), phase: rand(0, 6.28),
-      rot: rand(-0.4, 0.4), vrot: rand(-0.5, 0.5),
-      baseA: lerp(0.16, 0.5, depth), soft: depth < 0.45,
+      kind,
+      idx: kind === 'heart'
+        ? (Math.random() * BLOSSOM.length) | 0
+        : kind === 'rose'
+          ? (Math.random() * ROSE.length) | 0
+          : kind === 'flower'
+            ? (Math.random() * FLOWER.length) | 0
+            : 0,
+      soft: kind === 'heart' && depth < 0.45,
+      x: rand(0, W),
+      y: rand(-H * 0.15, H * 1.15),
+      depth,
+      box,
+      vy: kind === 'sparkle' ? lerp(10, 22, depth) : lerp(6, 16, depth),
+      sway: rand(10, 28),
+      phase: rand(0, 6.28),
+      rot: rand(-0.5, 0.5),
+      vrot: rand(-0.55, 0.55),
+      baseA: kind === 'sparkle'
+        ? lerp(0.35, 0.85, depth)
+        : lerp(0.28, 0.72, depth),
     });
   }
 
-  const baseX = cx, baseY = H * 1.0;
-  const trunkTopY = cy + ry * 0.62;
-  const trunkW = Math.max(9, W * 0.024);
-  const limbLen = ry * 0.6;
-  const insidePx = (x, y, m = 0.9) => pointInPoly((x - cx) / (rx * m), (cy - y) / (ry * m));
+  // Classic heart silhouette — tight grid + dense fill; rim never knocked away
+  const COUNT = isMobile
+    ? Math.round(clamp((rx * ry) / 22, 380, 580))
+    : Math.round(clamp((rx * ry) / 14, 620, 980));
+  const baseBox = clamp(Math.min(W, H) * 0.082, 20, 48);
+  const step = isMobile ? 0.046 : 0.034;
 
-  function addBranch(x, y, ang, len, w0, depth, t0) {
-    let ex = x + Math.cos(ang) * len, ey = y + Math.sin(ang) * len, clipped = false;
-    if (!insidePx(ex, ey)) {
-      let lo = 0, hi = 1;
-      for (let k = 0; k < 12; k++) {
-        const mid = (lo + hi) / 2;
-        (insidePx(x + Math.cos(ang) * len * mid, y + Math.sin(ang) * len * mid) ? (lo = mid) : (hi = mid));
-      }
-      ex = x + Math.cos(ang) * len * lo; ey = y + Math.sin(ang) * len * lo; clipped = true;
-    }
-    const mx = (x + ex) / 2, my = (y + ey) / 2, perp = ang + Math.PI / 2, bend = rand(-1, 1) * len * 0.12, w1 = w0 * 0.66;
-    branches.push({ x1: x, y1: y, cx: mx + Math.cos(perp) * bend, cy: my + Math.sin(perp) * bend, x2: ex, y2: ey, w0, w1, t0, dur: Math.max(0.14, 0.32 - depth * 0.03), depth, grad: barkGrad(x, y, ex, ey, depth) });
-    return { ex, ey, w1, clipped };
-  }
-
-  function grow(x, y, ang, len, w, depth, t0) {
-    const r = addBranch(x, y, ang, len, w, depth, t0);
-    if (r.clipped || depth >= 6 || len < ry * 0.06) return;
-    const childT0 = t0 + (0.32 - depth * 0.03) * 0.6;
-    const n = Math.random() < 0.55 ? 2 : 3;
-    for (let i = 0; i < n; i++) {
-      const spread = 0.6 * (i - (n - 1) / 2) + rand(-0.22, 0.22), lift = -0.06 + rand(-0.05, 0.05);
-      grow(r.ex, r.ey, ang + spread + lift, len * rand(0.74, 0.84), r.w1, depth + 1, childT0 + i * 0.03);
-    }
-  }
-
-  addBranch(baseX, baseY, -Math.PI / 2, baseY - trunkTopY, trunkW, 0, T.trunkStart);
-  branches[0].dur = 0.55;
-  const limbT0 = T.trunkStart + 0.36, L = 3;
-  for (let i = 0; i < L; i++) {
-    const ang = -Math.PI / 2 + 0.62 * (i - (L - 1) / 2) + rand(-0.12, 0.12);
-    grow(baseX, trunkTopY, ang, limbLen, trunkW * 0.7, 1, limbT0 + i * 0.05);
-  }
-  const maxT0 = branches.reduce((m, b) => Math.max(m, b.t0 + b.dur), 0);
-  const sc = (T.branchSpan - T.trunkStart) / (maxT0 - T.trunkStart);
-  for (const b of branches) b.t0 = T.trunkStart + (b.t0 - T.trunkStart) * sc;
-
-  const isMobile = W <= 768;
-  const COUNT = isMobile ? Math.round(clamp((rx * ry) / 100, 150, 220)) : Math.round(clamp((rx * ry) / 56, 250, 440));
-  const baseBox = clamp(Math.min(W, H) * 0.115, 30, 74);
-  let guard = 0;
-  while (hearts.length < COUNT && guard < COUNT * 50) {
-    guard++;
-    const u = rand(-1.06, 1.06), v = rand(-1.06, 1.06);
-    if (!pointInPoly(u, v)) continue;
-    const x = cx + u * rx, y = cy - v * ry;
-    const d = clamp01(Math.hypot(u, v + 1) / 2.4);
+  function pushHeartPetal(u, v, softChance) {
+    if (!pointInPoly(u, v)) return false;
+    const dist = Math.hypot(u, v * 0.92);
+    const x = cx + u * rx;
+    const y = cy - v * ry;
+    const d = clamp01(Math.hypot(u, v + 0.15) / 2.1);
     const t0 = T.bloomT0 + d * (T.bloomSpan * 0.82) + rand(0, T.bloomSpan * 0.18);
-    const soft = Math.random() < 0.42;
+    const soft = Math.random() < softChance;
+    // Slightly larger petals on the rim so the outline stays crisp after wipe
+    const rimBoost = dist >= HEART_RIM_KEEP ? 1.08 : dist < HEART_GIFT_ZONE ? 0.96 : 1;
     hearts.push({
-      x, y, idx: (Math.random() * BLOSSOM.length) | 0,
-      soft, box: baseBox * (soft ? rand(0.6, 0.85) : rand(0.78, 1.12)),
-      rot: rand(-0.55, 0.55), sway: rand(0, 6.28), t0,
+      x, y, u, v, dist, fallen: false,
+      idx: pickBlossomIdx(),
+      soft,
+      box: baseBox * rimBoost * (soft ? rand(0.58, 0.82) : rand(0.78, 1.08)),
+      rot: rand(-0.4, 0.4),
+      sway: rand(0, 6.28),
+      t0,
     });
+    return true;
+  }
+
+  // Grid first — clean classic heart outline
+  for (let gv = -1.02; gv <= 1.02; gv += step) {
+    for (let gu = -1.02; gu <= 1.02; gu += step) {
+      const u = gu + rand(-step * 0.18, step * 0.18);
+      const v = gv + rand(-step * 0.18, step * 0.18);
+      pushHeartPetal(u, v, 0.28);
+    }
+  }
+  // Extra fill for lush center + solid rim (no hollow halo)
+  let guard = 0;
+  while (hearts.length < COUNT && guard < COUNT * 100) {
+    guard++;
+    pushHeartPetal(rand(-1.0, 1.0), rand(-1.0, 1.0), 0.32);
+  }
+  // Mid ring packs tight around the gift pocket so no crater halo remains
+  for (let i = 0; i < (isMobile ? 70 : 110); i++) {
+    const a = (i / (isMobile ? 70 : 110)) * Math.PI * 2;
+    const r = rand(HEART_GIFT_ZONE + 0.02, HEART_RIM_KEEP - 0.02);
+    pushHeartPetal(Math.cos(a) * r, Math.sin(a) * r * 0.95, 0.22);
+  }
+  // Dedicated rim ring so silhouette never thins after gift opens
+  for (let i = 0; i < (isMobile ? 90 : 140); i++) {
+    const a = (i / (isMobile ? 90 : 140)) * Math.PI * 2;
+    const r = rand(0.86, 0.99);
+    pushHeartPetal(Math.cos(a) * r, Math.sin(a) * r * 0.95, 0.2);
   }
   hearts.sort((a, b) => (a.soft === b.soft ? a.y - b.y : a.soft ? -1 : 1));
 
+  // Dense continuous sunflower bed rooted at the screen bottom — no gaps
   sunflowers = [];
-  const sunflowerCount = isMobile ? Math.round(clamp(W / 22, 16, 26)) : Math.round(clamp(W / 36, 28, 48));
-  for (let i = 0; i < sunflowerCount; i++) {
-    let sx;
-    if (i % 3 === 0) sx = rand(W * 0.02, W * 0.40);
-    else if (i % 3 === 1) sx = rand(W * 0.60, W * 0.98);
-    else sx = rand(W * 0.35, W * 0.65);
+  const frontCount = isMobile
+    ? Math.round(clamp(W / 16, 22, 34))
+    : Math.round(clamp(W / 20, 36, 64));
+  const backCount = isMobile
+    ? Math.round(clamp(W / 22, 16, 26))
+    : Math.round(clamp(W / 26, 28, 48));
 
-    const sy = groundY + rand(-3, H * 0.05);
-    const height = rand(H * 0.13, H * 0.27);
-    const depth = Math.random();
-    const headSize = lerp(baseBox * 0.92, baseBox * 1.62, depth);
-    const lean = rand(-1, 1) * 20;
-    const t0 = T.bloomT0 + rand(0, 1.2);
+  function plantRow(count, depthRange, heightRange, sizeMul, tJitter) {
+    for (let i = 0; i < count; i++) {
+      const slot = (i + 0.5) / count;
+      const jitter = (rand(-0.42, 0.42) / count);
+      const sx = clamp((slot + jitter) * W, W * 0.01, W * 0.99);
+      const sy = H + rand(0, H * 0.012);
+      const depth = lerp(depthRange[0], depthRange[1], Math.random());
+      const height = rand(heightRange[0], heightRange[1]);
+      const headSize = lerp(baseBox * 0.85, baseBox * 1.55, depth) * sizeMul;
+      const lean = rand(-1, 1) * 16;
+      const t0 = T.bloomT0 + rand(0, tJitter);
 
-    sunflowers.push({
-      rootX: sx, rootY: sy, height, lean, depth, headSize,
-      swaySpeed: rand(1.1, 2.2), swayAmp: rand(0.04, 0.08),
-      phase: rand(0, 6.28), t0, soft: depth < 0.30,
-      leaves: [
-        { pos: rand(0.25, 0.42), side: -1, len: rand(16, 28), rot: rand(-0.4, -0.2) },
-        { pos: rand(0.50, 0.70), side: 1, len: rand(16, 28), rot: rand(0.2, 0.4) },
-      ],
-    });
+      sunflowers.push({
+        rootX: sx, rootY: sy, height, lean, depth, headSize,
+        swaySpeed: rand(1.1, 2.2), swayAmp: rand(0.04, 0.08),
+        phase: rand(0, 6.28), t0, soft: depth < 0.35,
+        leaves: [
+          { pos: rand(0.25, 0.42), side: -1, len: rand(14, 26), rot: rand(-0.4, -0.2) },
+          { pos: rand(0.50, 0.70), side: 1, len: rand(14, 26), rot: rand(0.2, 0.4) },
+        ],
+      });
+    }
   }
+
+  // Mobile: keep sunflowers short so swipe hint + birthday text stay clear
+  const backH = isMobile
+    ? [H * (isShort ? 0.055 : 0.06), H * (isShort ? 0.10 : 0.12)]
+    : [H * (isShort ? 0.10 : 0.12), H * (isShort ? 0.18 : 0.22)];
+  const frontH = isMobile
+    ? [H * (isShort ? 0.07 : 0.08), H * (isShort ? 0.13 : 0.15)]
+    : [H * (isShort ? 0.14 : 0.16), H * (isShort ? 0.24 : 0.30)];
+
+  plantRow(backCount, [0.05, 0.42], backH, isMobile ? 0.72 : 0.82, 1.0);
+  plantRow(frontCount, [0.45, 1.0], frontH, isMobile ? 0.88 : 1.0, 1.15);
   sunflowers.sort((a, b) => a.depth - b.depth);
 }
 
@@ -464,38 +594,6 @@ function drawBackground() {
   ctx.restore();
 }
 
-function drawGodRays(t, intensity) {
-  if (intensity <= 0) return;
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  const ox = cx, oy = cy - ry * 0.35, R = Math.hypot(W, H) * 1.1;
-  const rays = 9, sweep = Math.sin(t * 0.07) * 0.18;
-  for (let i = 0; i < rays; i++) {
-    const a = -Math.PI / 2 + sweep + (i - (rays - 1) / 2) * 0.2;
-    const hw = 0.035 + 0.02 * (0.5 + 0.5 * Math.sin(t * 0.5 + i * 1.7));
-    const a1 = a - hw, a2 = a + hw;
-    const g = ctx.createLinearGradient(ox, oy, ox + Math.cos(a) * R, oy + Math.sin(a) * R);
-    g.addColorStop(0, `rgba(255,232,190,${0.10 * intensity})`);
-    g.addColorStop(0.5, `rgba(255,214,170,${0.05 * intensity})`);
-    g.addColorStop(1, 'rgba(255,214,170,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(ox + Math.cos(a1) * R, oy + Math.sin(a1) * R);
-    ctx.lineTo(ox + Math.cos(a2) * R, oy + Math.sin(a2) * R);
-    ctx.closePath(); ctx.fill();
-  }
-  ctx.restore();
-}
-
-function drawGlow(t) {
-  const gi = clamp01((t - T.bloomT0) / (T.bloomSpan * 0.9));
-  if (gi <= 0) return;
-  ctx.save(); ctx.globalAlpha = gi; ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = glowGrad; ctx.fillRect(0, 0, W, H);
-  ctx.restore();
-}
-
 function drawBokeh(t, dt) {
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const o of orbs) {
@@ -507,6 +605,13 @@ function drawBokeh(t, dt) {
   ctx.restore();
 }
 
+function floaterSprite(f) {
+  if (f.kind === 'sparkle') return SPARKLE;
+  if (f.kind === 'rose') return ROSE[f.idx % ROSE.length];
+  if (f.kind === 'flower') return FLOWER[f.idx % FLOWER.length];
+  return (f.soft ? SPR.soft : SPR.crisp)[f.idx % SPR.crisp.length];
+}
+
 function drawFloaters(t, dt, front) {
   const appear = clamp01((t - 0.2) / 1.4);
   if (appear <= 0) return;
@@ -516,31 +621,17 @@ function drawFloaters(t, dt, front) {
     f.x += Math.sin(t * 0.5 + f.phase) * f.sway * dt;
     f.rot += f.vrot * dt;
     if (f.y < -f.box) { f.y = H + f.box; f.x = rand(0, W); }
-    drawSprite((f.soft ? SPR.soft : SPR.crisp)[f.idx], f.x, f.y, f.box, f.rot, f.baseA * appear);
-  }
-}
-
-function drawBranches(t) {
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  for (const b of branches) {
-    const f = clamp01((t - b.t0) / b.dur);
-    if (f <= 0) continue;
-    const e = easeOutCubic(f);
-    ctx.strokeStyle = b.grad;
-    const steps = 12, last = Math.max(1, Math.ceil(steps * e));
-    let prev = quad(b, 0);
-    for (let i = 1; i <= last; i++) {
-      const tt = Math.min(e, i / steps), p = quad(b, tt);
-      ctx.lineWidth = lerp(b.w0, b.w1, tt);
-      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-      prev = p;
-    }
+    const pulse = f.kind === 'sparkle'
+      ? 0.65 + 0.35 * Math.sin(t * 3.2 + f.phase)
+      : 1;
+    drawSprite(floaterSprite(f), f.x, f.y, f.box, f.rot, f.baseA * appear * pulse);
   }
 }
 
 function drawHearts(t) {
   const breathe = 1 + Math.sin(t * 0.8) * 0.012;
   for (const h of hearts) {
+    if (h.fallen) continue;
     const p = clamp01((t - h.t0) / 0.6);
     if (p <= 0) continue;
     const scale = Math.max(0, easeOutBack(p));
@@ -551,6 +642,85 @@ function drawHearts(t) {
     const hx = cx + (h.x - cx) * breathe + sway;
     const hy = cy + (h.y - cy) * breathe - rise;
     drawSprite((h.soft ? SPR.soft : SPR.crisp)[h.idx], hx, hy, h.box * scale, h.rot + sway * 0.012, alpha);
+  }
+}
+
+function spawnFallFromHeart(h) {
+  // Sweep aside from the heart center, then fall — not a scratch erase
+  const dx = h.x - cx;
+  const dy = h.y - cy;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = dx / len;
+  const ny = dy / len;
+  const outward = rand(55, 130);
+  petals.push({
+    x: h.x + rand(-4, 4),
+    y: h.y + rand(-4, 4),
+    vy: rand(32, 78) + Math.max(0, ny) * 24,
+    vx: nx * outward + rand(-14, 14),
+    sway: rand(0.9, 2.0),
+    phase: rand(0, 6.28),
+    box: h.box * rand(0.44, 0.78),
+    idx: h.idx,
+    rot: h.rot + rand(-0.5, 0.5),
+    vrot: rand(-2.8, 2.8),
+    age: 0,
+    land: groundY + rand(-18, -4),
+  });
+}
+
+/** Sweep petals near a point — they slide outward & fall. Outer rim never moves. */
+export function knockPetalsNear(clientX, clientY, brushPx) {
+  if (!canvas || !hearts.length) return { knocked: 0, clearRatio: 0 };
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return { knocked: 0, clearRatio: 0 };
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const x = (clientX - rect.left) * scaleX;
+  const y = (clientY - rect.top) * scaleY;
+  const brush = (brushPx || Math.min(rx, ry) * 0.3) * ((scaleX + scaleY) * 0.5);
+
+  let knocked = 0;
+  // Only inner/mid petals; rim (dist >= HEART_RIM_KEEP) is locked
+  const candidates = hearts
+    .filter((h) => !h.fallen && h.dist < HEART_RIM_KEEP)
+    .map((h) => ({ h, d: Math.hypot(h.x - x, h.y - y) }))
+    .filter((c) => c.d <= brush)
+    .sort((a, b) => a.h.dist - b.h.dist || a.d - b.d);
+
+  const maxPerStroke = 5;
+  for (let i = 0; i < candidates.length && knocked < maxPerStroke; i++) {
+    const h = candidates[i].h;
+    h.fallen = true;
+    spawnFallFromHeart(h);
+    knocked++;
+  }
+  return { knocked, clearRatio: getGiftClearRatio() };
+}
+
+export function getGiftClearRatio() {
+  let total = 0;
+  let gone = 0;
+  for (const h of hearts) {
+    if (h.dist >= HEART_GIFT_ZONE) continue;
+    total++;
+    if (h.fallen) gone++;
+  }
+  return total ? gone / total : 0;
+}
+
+export function resetKnockedPetals() {
+  for (const h of hearts) h.fallen = false;
+  petals = petals.filter((p) => p.isSunflower);
+}
+
+/** After reveal, tuck only petals directly under the gift box — no crater. */
+export function clearGiftZone() {
+  const tuck = HEART_GIFT_ZONE * 0.72;
+  for (const h of hearts) {
+    if (h.fallen || h.dist > tuck) continue;
+    h.fallen = true;
+    spawnFallFromHeart(h);
   }
 }
 
@@ -582,7 +752,7 @@ function spawnPetal() {
       sway: rand(0.7, 1.5), phase: rand(0, 6.28),
       box: rand(18, 30), isSunflower: true,
       rot: rand(0, 6.28), vrot: rand(-1.6, 1.6),
-      age: 0, land: groundY + rand(-6, H * 0.05),
+      age: 0, land: groundY + rand(-14, -2),
     });
     return;
   }
@@ -594,7 +764,7 @@ function spawnPetal() {
     sway: rand(0.6, 1.4), phase: rand(0, 6.28),
     box: h.box * rand(0.34, 0.6), idx: h.idx,
     rot: rand(0, 6.28), vrot: rand(-1.4, 1.4),
-    age: 0, land: groundY + rand(-6, H * 0.05),
+    age: 0, land: groundY + rand(-14, -2),
   });
 }
 
@@ -633,12 +803,29 @@ function drawRested() {
 
 export function showWish(on) {
   if (wishEl) wishEl.classList.toggle('is-in', on);
+  if (on && !wishShown && onWishShownCallback) {
+    wishShown = true;
+    onWishShownCallback(getHeartLayout());
+  }
+  if (!on) wishShown = false;
 }
 
-export function showCake(on) {
-  if (cakeWrapper) {
-    cakeWrapper.classList.toggle('is-in', on);
-  }
+/** Kept for callers that still import showCake — finale cake UI removed. */
+export function showCake(_on) {}
+
+export function getHeartLayout() {
+  const canvasEl = canvas || $('tree');
+  const rect = canvasEl ? canvasEl.getBoundingClientRect() : { left: 0, top: 0, width: W, height: H };
+  const scaleX = rect.width / (W || 1);
+  const scaleY = rect.height / (H || 1);
+  return {
+    cx: rect.left + cx * scaleX,
+    cy: rect.top + cy * scaleY,
+    rx: rx * scaleX,
+    ry: ry * scaleY,
+    W,
+    H,
+  };
 }
 
 function treeFrame(now) {
@@ -646,28 +833,17 @@ function treeFrame(now) {
   const t  = (now - treeStartT) / 1000;
   const dt = Math.min(0.05, (now - treeLastT) / 1000); treeLastT = now;
 
-  const rays = clamp01((t - T.bloomT0) / T.bloomSpan);
-
   drawBackground();
-  drawGodRays(t, rays);
-  drawGlow(t);
   drawBokeh(t, dt);
   drawFloaters(t, dt, false);
-  drawBranches(t);
   drawHearts(t);
+  drawPetals(t, dt);
   updateTwinkles(t, dt);
   drawSunflowers(t);
-  if (t > T.petalT0 && now - lastPetal > (W <= 768 ? 220 : 150)) {
-    spawnPetal();
-    if (W > 768) spawnPetal();
-    lastPetal = now;
-  }
-  drawPetals(t, dt);
   drawRested();
   drawFloaters(t, dt, true);
 
   showWish(t >= T.noteStart);
-  showCake(t >= T.noteStart + 0.3);
 
   if (!window.bdayDone && t >= T.done) window.bdayDone = true;
   if (!replayArmed && t >= T.done + 1.0) {
@@ -679,7 +855,7 @@ function treeFrame(now) {
 }
 
 export function treeStart() {
-  treeStartT = 0; treeLastT = 0; lastPetal = 0; replayArmed = false; window.bdayDone = false;
+  treeStartT = 0; treeLastT = 0; lastPetal = 0; replayArmed = false; wishShown = false; window.bdayDone = false;
   cue('grow');
   buildScene();
   if (!treeRAF) treeRAF = requestAnimationFrame(treeFrame);
@@ -688,28 +864,16 @@ export function treeStart() {
 export function treeStop() {
   if (treeRAF) { cancelAnimationFrame(treeRAF); treeRAF = 0; }
   if (ctx) ctx.clearRect(0, 0, W, H);
+  wishShown = false;
 }
 
 export function drawFinal() {
   buildScene();
-  drawBackground(); drawGodRays(0, 1); drawGlow(T.done); drawBokeh(0, 0); drawFloaters(99, 0, false);
-  drawBranches(99); drawHearts(99);
+  drawBackground(); drawBokeh(0, 0); drawFloaters(99, 0, false);
+  drawHearts(99);
   drawSunflowers(99);
-  for (let i = 0; i < 45; i++) {
-    const isSun = Math.random() < 0.4;
-    rested.push({
-      x: rand(10, W - 10),
-      y: groundY + rand(-6, H * 0.05),
-      box: rand(16, 32),
-      idx: (Math.random() * BLOSSOM.length) | 0,
-      isSunflower: isSun,
-      rot: rand(0, 6.28),
-      a: 0.85,
-    });
-  }
-  drawRested(); drawFloaters(99, 0, true);
+  drawFloaters(99, 0, true);
   showWish(true);
-  showCake(true);
   window.bdayDone = true;
 }
 
@@ -724,10 +888,10 @@ export function resizeTree(curW, curH, devicePR) {
   buildScene();
 }
 
-export function initTree({ onArmReplay } = {}) {
+export function initTree({ onArmReplay, onWishShown } = {}) {
   canvas = $('tree');
   ctx = canvas ? canvas.getContext('2d') : null;
   wishEl = $('wish');
-  cakeWrapper = $('cakeWrapper');
   armReplayCallback = onArmReplay;
+  onWishShownCallback = onWishShown;
 }

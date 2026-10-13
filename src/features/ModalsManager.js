@@ -30,7 +30,7 @@ export function popModalHistory(name) {
 
 // Global popstate handler for hardware back buttons and swipe back
 window.addEventListener('popstate', () => {
-  const modalNames = ['letter', 'gallery', 'lantern', 'gift', 'constellation', 'promise'];
+  const modalNames = ['letter', 'gallery', 'lantern', 'gift', 'constellation', 'promise', 'videowish'];
   for (const name of modalNames) {
     const closer = modalCloseHandlers[name];
     if (closer && closer()) {

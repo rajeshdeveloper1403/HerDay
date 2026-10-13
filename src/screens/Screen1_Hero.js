@@ -278,6 +278,22 @@ export function autoFire() {
 export function enter() {
   if (onUserActivationCallback) onUserActivationCallback();
   gsap.set(hero, { autoAlpha: 1 });
+
+  // Rest heart + cupid aim to their resting pose BEFORE measuring aim.
+  // After "Again", the film leaves the heart fallen/scaled; aiming at that
+  // leftover geometry flips Cupid to the wrong direction.
+  if (target) {
+    gsap.killTweensOf(target);
+    gsap.set(target, { x: 0, y: 0, scaleX: 1, scaleY: 1, scale: 1, rotation: 0, opacity: 1 });
+  }
+  const aimer = $('cupidAim') || cupidFlyer;
+  if (aimer) {
+    gsap.killTweensOf(aimer);
+    gsap.set(aimer, { rotation: 0, scaleX: 1, scaleY: 1, x: 0, y: 0 });
+  }
+  if (archery) gsap.killTweensOf(archery);
+  if (hero) void hero.offsetWidth;
+
   refreshRig();
   setDraw(0);
   gsap.set([eyebrow, hint], { opacity: 0, y: 14 });
@@ -300,6 +316,7 @@ export function resetScreen1() {
   curDraw = 0;
   gsap.set(arrow, { opacity: 1, x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 });
   if (cupidArmWrap) gsap.set(cupidArmWrap, { x: 0, y: 0, rotation: 0 });
+  if (aim) gsap.set(aim, { opacity: 0.75 });
   enter();
 }
 

@@ -40,6 +40,9 @@ import {
   showCake,
 } from './screens/Screen3_Tree.js';
 
+import { setupHeartGiftReveal, armHeartGift, resetHeartGift } from './features/HeartGiftReveal.js';
+import { setupVideoWishModal, openVideoWish, closeVideoWish, resetVideoWish } from './features/VideoWishModal.js';
+
 import {
   initCarrom,
   startCarrom,
@@ -83,12 +86,15 @@ function resetAll() {
   showCake(false);
   resetCake();
   resetCarrom();
+  resetHeartGift();
+  resetVideoWish();
   closeGallery();
   closeCarromSlide();
   closeLetterModal(false);
   closeGiftModal(false);
   closeLanternModal(false);
   closeConstellationModal(false);
+  closeVideoWish(false);
 
   window.bdayDone = false;
   replayArmed = false;
@@ -155,6 +161,7 @@ initCarrom({
 // 4. Initialize Tree finale (Screen 4)
 initTree({
   onArmReplay: armReplay,
+  onWishShown: (layout) => armHeartGift(layout),
 });
 
 // 5. Initialize Interactive Features
@@ -168,6 +175,10 @@ setupConstellation({ fireworkAt });
 setupCake({
   launchFireworks: launchMidnightFireworks,
   modalOpeners,
+});
+setupVideoWishModal();
+setupHeartGiftReveal({
+  onOpen: () => openVideoWish(),
 });
 
 initCursorCanvas();

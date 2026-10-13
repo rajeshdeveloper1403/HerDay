@@ -1,9 +1,11 @@
 /* ============================================================
-   FEATURE: BIRTHDAY SONG PLAYER ("Happy Birthday")
-   Plays 30s to 1m20s chorus loop with animated equalizer bars.
+   FEATURE: BACKGROUND MUSIC PLAYER
+   Plays "The Love Bug Has Bitten" on loop; toggle via music button.
    ============================================================ */
 import { $ } from '../core/utils.js';
 import { initAudioContext, getAudioContext } from '../core/audio.js';
+
+const MUSIC_SRC = './The-Love-Bug-Has-Bitten.mp3';
 
 let bdayAudio = null;
 let isMusicBoxPlaying = false;
@@ -37,32 +39,9 @@ export function detachAutoPlayListeners() {
 
 function initAudioElement() {
   if (!bdayAudio) {
-    bdayAudio = new Audio('./happy-birthday.mp3');
+    bdayAudio = new Audio(MUSIC_SRC);
     bdayAudio.loop = true;
     bdayAudio.preload = 'auto';
-
-    const setChorusTime = () => {
-      if (bdayAudio.duration > 65 && bdayAudio.currentTime < 30) {
-        bdayAudio.currentTime = 30;
-      }
-    };
-    bdayAudio.addEventListener('loadedmetadata', setChorusTime);
-    bdayAudio.addEventListener('canplay', setChorusTime);
-
-    bdayAudio.addEventListener('timeupdate', () => {
-      if (bdayAudio.duration > 65) {
-        if (bdayAudio.currentTime < 30) {
-          bdayAudio.currentTime = 30;
-        } else if (bdayAudio.currentTime >= 80) {
-          bdayAudio.currentTime = 30;
-        }
-      }
-    });
-
-    bdayAudio.addEventListener('ended', () => {
-      if (bdayAudio.duration > 65) bdayAudio.currentTime = 30;
-      bdayAudio.play().catch(() => {});
-    });
 
     bdayAudio.addEventListener('play', () => {
       isMusicBoxPlaying = true;
@@ -83,10 +62,6 @@ export function startMusicBox() {
   initAudioElement();
   initAudioContext();
   if (!bdayAudio) return;
-
-  if (bdayAudio.readyState >= 1 && bdayAudio.duration > 65 && bdayAudio.currentTime < 30) {
-    bdayAudio.currentTime = 30;
-  }
 
   const p = bdayAudio.play();
   if (p !== undefined) {
