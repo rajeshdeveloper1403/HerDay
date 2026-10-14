@@ -21,7 +21,9 @@ const BLOSSOM = [
 /** Outer shell stays forever — heart shape never collapses. */
 const HEART_RIM_KEEP = 0.88;
 /** Sweep opens this tight center; gift sits nestled with almost no hollow. */
-const HEART_GIFT_ZONE = 0.20;
+const HEART_GIFT_ZONE = 0.22;
+/** Only petals inside this radius can be knocked — stops holes on top/sides. */
+const HEART_KNOCK_ZONE = 0.26;
 /** Red blossom indices (True Red / Deep Crimson / Bright Rose Red). */
 const RED_BLOSSOM = [6, 7, 8];
 
@@ -675,7 +677,7 @@ function spawnFallFromHeart(h) {
   });
 }
 
-/** Sweep petals near a point — they slide outward & fall. Outer rim never moves. */
+/** Sweep petals near a point — only the gift pocket moves. Rest of heart stays solid. */
 export function knockPetalsNear(clientX, clientY, brushPx) {
   if (!canvas || !hearts.length) return { knocked: 0, clearRatio: 0 };
   const rect = canvas.getBoundingClientRect();
@@ -684,17 +686,24 @@ export function knockPetalsNear(clientX, clientY, brushPx) {
   const scaleY = H / rect.height;
   const x = (clientX - rect.left) * scaleX;
   const y = (clientY - rect.top) * scaleY;
-  const brush = (brushPx || Math.min(rx, ry) * 0.3) * ((scaleX + scaleY) * 0.5);
+
+  // Ignore swipes outside the gift pocket — prevents blank holes on top/sides
+  const distFromCenter = Math.hypot((x - cx) / rx, ((cy - y) / ry) * 0.92);
+  if (distFromCenter > HEART_KNOCK_ZONE + 0.12) {
+    return { knocked: 0, clearRatio: getGiftClearRatio() };
+  }
+
+  const brush = (brushPx || Math.min(rx, ry) * 0.22) * ((scaleX + scaleY) * 0.5);
 
   let knocked = 0;
-  // Only inner/mid petals; rim (dist >= HEART_RIM_KEEP) is locked
+  // Gift-pocket petals only — never knock mid/outer heart
   const candidates = hearts
-    .filter((h) => !h.fallen && h.dist < HEART_RIM_KEEP)
+    .filter((h) => !h.fallen && h.dist < HEART_KNOCK_ZONE)
     .map((h) => ({ h, d: Math.hypot(h.x - x, h.y - y) }))
     .filter((c) => c.d <= brush)
     .sort((a, b) => a.h.dist - b.h.dist || a.d - b.d);
 
-  const maxPerStroke = 5;
+  const maxPerStroke = 4;
   for (let i = 0; i < candidates.length && knocked < maxPerStroke; i++) {
     const h = candidates[i].h;
     h.fallen = true;

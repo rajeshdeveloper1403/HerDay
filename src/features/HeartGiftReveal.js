@@ -101,7 +101,8 @@ const wipePrev = { x: 0, y: 0, _has: false };
 function sweepAt(clientX, clientY) {
   if (revealed || !active) return;
 
-  const brush = Math.max(28, Math.min(layout?.rx || 70, layout?.ry || 70) * 0.34);
+  // Tight brush so only the gift pocket opens — no holes elsewhere on the heart
+  const brush = Math.max(22, Math.min(layout?.rx || 70, layout?.ry || 70) * 0.24);
   let clearRatio = getGiftClearRatio();
 
   // Sample along the stroke so petals detach one-by-one while moving
