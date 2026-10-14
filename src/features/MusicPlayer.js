@@ -1,15 +1,18 @@
 /* ============================================================
    FEATURE: BACKGROUND MUSIC PLAYER
-   Plays "The Love Bug Has Bitten" on loop; toggle via music button.
+   Plays "The Love Bug Has Bitten" once, then loops Happy Birthday.
    ============================================================ */
 import { $ } from '../core/utils.js';
 import { initAudioContext, getAudioContext } from '../core/audio.js';
 
-const MUSIC_SRC = './The-Love-Bug-Has-Bitten.mp3';
+const INTRO_SRC = './The-Love-Bug-Has-Bitten.mp3';
+const LOOP_SRC = './happy-birthday.mp3';
 
 let bdayAudio = null;
 let isMusicBoxPlaying = false;
 let audioListenersAttached = false;
+let onIntroTrack = true;
+let endedBound = null;
 
 export function handleUserActivation() {
   if (!isMusicBoxPlaying) {
@@ -37,11 +40,35 @@ export function detachAutoPlayListeners() {
   window.removeEventListener('keydown', handleUserActivation);
 }
 
+function switchToLoopTrack() {
+  if (!bdayAudio || !onIntroTrack) return;
+  onIntroTrack = false;
+  if (endedBound) {
+    bdayAudio.removeEventListener('ended', endedBound);
+    endedBound = null;
+  }
+  const btn = $('musicBoxBtn');
+  bdayAudio.loop = true;
+  bdayAudio.src = LOOP_SRC;
+  bdayAudio.load();
+  const p = bdayAudio.play();
+  if (p && typeof p.then === 'function') {
+    p.then(() => {
+      isMusicBoxPlaying = true;
+      if (btn) btn.classList.add('is-playing');
+    }).catch(() => {});
+  }
+}
+
 function initAudioElement() {
   if (!bdayAudio) {
-    bdayAudio = new Audio(MUSIC_SRC);
-    bdayAudio.loop = true;
+    onIntroTrack = true;
+    bdayAudio = new Audio(INTRO_SRC);
+    bdayAudio.loop = false;
     bdayAudio.preload = 'auto';
+
+    endedBound = () => switchToLoopTrack();
+    bdayAudio.addEventListener('ended', endedBound);
 
     bdayAudio.addEventListener('play', () => {
       isMusicBoxPlaying = true;
@@ -51,9 +78,12 @@ function initAudioElement() {
     });
 
     bdayAudio.addEventListener('pause', () => {
-      isMusicBoxPlaying = false;
-      const btn = $('musicBoxBtn');
-      if (btn) btn.classList.remove('is-playing');
+      // Don't mark stopped when swapping tracks briefly
+      if (bdayAudio && !bdayAudio.ended && bdayAudio.paused) {
+        isMusicBoxPlaying = false;
+        const btn = $('musicBoxBtn');
+        if (btn) btn.classList.remove('is-playing');
+      }
     });
   }
 }

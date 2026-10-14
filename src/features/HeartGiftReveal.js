@@ -42,7 +42,7 @@ function positionLayer() {
   // Extra bottom pad when hint docks under the heart (mobile / narrow)
   const padBot = useSide
     ? Math.max(layout.rx, layout.ry) * 0.12
-    : Math.max(layout.rx, layout.ry) * 0.08 + 52;
+    : Math.max(layout.rx, layout.ry) * 0.06 + 44;
 
   const left = layout.cx - layout.rx - padL - sceneRect.left;
   const top = layout.cy - layout.ry - padTop - sceneRect.top;
@@ -74,11 +74,11 @@ function positionLayer() {
       hintEl.style.left = `${layout.cxLocal + layout.rx + 10}px`;
       hintEl.style.top = `${layout.cyLocal}px`;
     } else {
-      // Mobile / narrow: dock just under the heart tip — clear of sunflowers & title
+      // Mobile / narrow: tuck at heart tip — birthday text sits lower so nothing blends
       hintEl.classList.remove('is-side');
       hintEl.classList.add('is-dock');
       hintEl.style.left = `${layout.cxLocal}px`;
-      hintEl.style.top = `${layout.cyLocal + layout.ry + 6}px`;
+      hintEl.style.top = `${layout.cyLocal + layout.ry - 2}px`;
     }
   }
 
@@ -184,7 +184,11 @@ export function armHeartGift(layoutHint) {
     hitCanvas.style.opacity = '1';
     hitCanvas.style.pointerEvents = 'auto';
   }
-  if (hintEl) hintEl.classList.remove('is-gone');
+  // Hint fades in after layout — avoids early flash before heart is ready
+  if (hintEl) {
+    hintEl.classList.add('is-gone');
+    hintEl.classList.remove('is-ready');
+  }
   if (giftBtn) {
     giftBtn.classList.remove('is-revealed');
     giftBtn.style.opacity = '0';
@@ -192,7 +196,14 @@ export function armHeartGift(layoutHint) {
     giftBtn.setAttribute('aria-hidden', 'true');
   }
   if (layoutHint) layout = layoutHint;
-  requestAnimationFrame(() => positionLayer());
+  requestAnimationFrame(() => {
+    positionLayer();
+    requestAnimationFrame(() => {
+      if (!active || revealed || !hintEl) return;
+      hintEl.classList.add('is-ready');
+      hintEl.classList.remove('is-gone');
+    });
+  });
 }
 
 export function resetHeartGift() {

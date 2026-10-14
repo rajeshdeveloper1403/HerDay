@@ -1142,14 +1142,18 @@ body{
 /* Screen 2 Responsive Scaling for Perfect Fit on All Viewports */
 @media (max-width: 768px){
   .camera{
-    padding-top:clamp(22px, 5.0vh, 38px);
+    /* Pull Make a Wish / Happy Birthday down from the top edge on mobile */
+    padding-top:clamp(52px, 11vh, 88px);
     padding-left:14px; padding-right:14px;
   }
   .kEyebrow{
     font-size:clamp(14px, 3.8vw, 18px);
   }
+  .kEyebrow-box{
+    margin-bottom:clamp(8px, 1.6vh, 16px);
+  }
   .hl__word{
-    font-size:clamp(46px, 13vw, 64px); /* BIGGER & bolder on mobile to eliminate void */
+    font-size:clamp(42px, 12vw, 60px);
     line-height:0.95;
   }
   .uline{
@@ -1202,7 +1206,7 @@ body{
 
 @media (max-width: 380px){
   .camera{
-    padding-top:14px;
+    padding-top:clamp(44px, 10vh, 72px);
     padding-left:8px; padding-right:8px;
   }
   .hl__word{
@@ -1218,10 +1222,10 @@ body{
 
 @media (max-height: 600px){
   .camera{
-    padding-top:8px;
+    padding-top:clamp(36px, 8vh, 56px);
     padding-left:12px; padding-right:12px;
   }
-  .kEyebrow-box{ margin-bottom:2px; }
+  .kEyebrow-box{ margin-bottom:6px; }
   .kEyebrow{ font-size:12px; }
   .headline{ line-height:0.92; }
   .hl__word{ font-size:clamp(26px, 9vh, 42px); }
@@ -2201,10 +2205,10 @@ body{
   .gallery-float-item.gf-paw{ opacity:.52; }
 }
 
-/* Short viewports — keep dedication clear of sunflower bed */
+/* Short viewports — keep dedication clear of sunflower bed + swipe hint */
 @media (max-height: 700px){
   .wish{
-    top:clamp(48%, 50vh, 54%);
+    top:clamp(54%, 56vh, 60%);
   }
   .wish__title{ font-size:clamp(28px, 6.2vw, 48px); }
   .wish__name{ font-size:clamp(34px, 7.4vw, 58px); }
@@ -2212,21 +2216,21 @@ body{
 
 @media (max-height: 560px){
   .wish{
-    top:clamp(46%, 48vh, 52%);
+    top:clamp(52%, 54vh, 58%);
   }
 }
 
 @media (max-width: 860px) and (max-height: 700px){
   .wish{
-    top:clamp(48%, 50vh, 54%);
+    top:clamp(56%, 58vh, 62%);
   }
 }
 
 /* Mobile & smaller screen responsiveness */
 @media (max-width: 860px){
   .wish{
-    /* Sit in the clear band above the shorter sunflower bed */
-    top:clamp(48%, 50vh, 54%);
+    /* Clear band under swipe hint + above shorter sunflowers — no blend */
+    top:clamp(58%, 60vh, 64%);
     width:min(94vw, 520px);
   }
   .wish__title{
@@ -4939,13 +4943,17 @@ body{
 .heart-gift-hint.is-dock .heart-gift-hint__copy strong{ font-size:12.5px; }
 .heart-gift-hint.is-dock .heart-gift-hint__copy span{ font-size:11px; }
 .heart-gift-hint.is-gone{
-  opacity:0;
+  opacity:0 !important;
+  animation:none !important;
 }
 .heart-gift-hint.is-side.is-gone{
   transform:translateY(-50%) translateX(14px);
 }
 .heart-gift-hint.is-dock.is-gone{
   transform:translate(-50%, 8px);
+}
+.heart-gift-hint.is-ready:not(.is-gone){
+  transition:opacity .55s ease, transform .55s ease;
 }
 @keyframes hgiftHintSide{
   0%,100%{ transform:translateY(-50%); }
@@ -5061,7 +5069,7 @@ body{
 .vwish-modal{
   position:fixed;
   inset:0;
-  z-index:120;
+  z-index:10050; /* above .replay (9000) so AGAIN never glitches over the video */
   display:grid;
   place-items:center;
   opacity:0;
@@ -5073,6 +5081,16 @@ body{
   opacity:1;
   pointer-events:auto;
   visibility:visible;
+}
+/* Hide finale AGAIN while video/note modal is open — prevents button glitch */
+body.modal-open .replay{
+  opacity:0 !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+/* Keep music reachable above the modal chrome */
+body.modal-open .music-box-btn{
+  z-index:10060;
 }
 .vwish-modal > .vwish-stage,
 .vwish-modal > .vwish-note{
@@ -5108,53 +5126,80 @@ body{
 .vwish-stage{
   position:relative;
   z-index:1;
-  /* Portrait video card with elegant frame */
+  /* Portrait video — ornate romantic photo frame */
   width:min(88vw, calc(82vh * 9 / 16), 400px);
   height:min(82vh, calc(88vw * 16 / 9), 720px);
   aspect-ratio:9 / 16;
-  border-radius:26px;
+  border-radius:28px;
   overflow:hidden;
   isolation:isolate;
-  padding:10px;
+  padding:14px;
   box-sizing:border-box;
   background:
-    linear-gradient(145deg, rgba(255,236,248,.55), rgba(192,132,252,.28) 40%, rgba(76,29,149,.45)),
-    linear-gradient(180deg, #3d2a5c 0%, #503967 50%, #6b3d72 100%);
-  border:1.5px solid rgba(255,220,240,.45);
+    linear-gradient(145deg, #ffe6f2 0%, #f5c4de 22%, #e8a0c8 48%, #c97bb0 72%, #9a5a8a 100%);
+  border:2px solid rgba(255,236,248,.75);
   box-shadow:
-    0 28px 80px rgba(20,8,40,.5),
-    0 0 0 1px rgba(255,255,255,.12) inset,
-    0 0 40px rgba(232,132,252,.18);
+    0 28px 80px rgba(20,8,40,.52),
+    0 0 0 1px rgba(255,210,230,.4) inset,
+    0 0 0 6px rgba(120,40,80,.18),
+    0 0 48px rgba(255,140,190,.28);
 }
 .vwish-frame{
   position:absolute;
   inset:8px;
   z-index:4;
   pointer-events:none;
-  border-radius:20px;
-  border:1px solid rgba(255,255,255,.28);
-  box-shadow:inset 0 0 0 1px rgba(192,132,252,.18);
+  border-radius:22px;
+}
+.vwish-frame__rim{
+  position:absolute;
+  inset:0;
+  border-radius:22px;
+  border:1.5px solid rgba(255,248,252,.72);
+  box-shadow:
+    inset 0 0 0 3px rgba(192,80,130,.28),
+    inset 0 0 0 5px rgba(255,214,160,.35),
+    inset 0 0 18px rgba(255,200,230,.2);
+}
+.vwish-frame__glow{
+  position:absolute;
+  inset:4px;
+  border-radius:18px;
+  border:1px solid rgba(255,220,160,.45);
+  box-shadow:0 0 16px rgba(255,200,140,.18);
 }
 .vwish-frame__corner{
   position:absolute;
-  width:18px;
-  height:18px;
-  border-color:rgba(255,214,236,.85);
+  width:22px;
+  height:22px;
+  border-color:rgba(255,214,160,.95);
   border-style:solid;
+  filter:drop-shadow(0 0 4px rgba(255,200,140,.55));
 }
-.vwish-frame__corner--tl{ top:6px; left:6px; border-width:2px 0 0 2px; border-radius:4px 0 0 0; }
-.vwish-frame__corner--tr{ top:6px; right:6px; border-width:2px 2px 0 0; border-radius:0 4px 0 0; }
-.vwish-frame__corner--bl{ bottom:6px; left:6px; border-width:0 0 2px 2px; border-radius:0 0 0 4px; }
-.vwish-frame__corner--br{ bottom:6px; right:6px; border-width:0 2px 2px 0; border-radius:0 0 4px 0; }
+.vwish-frame__corner--tl{ top:8px; left:8px; border-width:2.5px 0 0 2.5px; border-radius:6px 0 0 0; }
+.vwish-frame__corner--tr{ top:8px; right:8px; border-width:2.5px 2.5px 0 0; border-radius:0 6px 0 0; }
+.vwish-frame__corner--bl{ bottom:8px; left:8px; border-width:0 0 2.5px 2.5px; border-radius:0 0 0 6px; }
+.vwish-frame__corner--br{ bottom:8px; right:8px; border-width:0 2.5px 2.5px 0; border-radius:0 0 6px 0; }
+.vwish-frame__jewel{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:11px;
+  line-height:1;
+  color:rgba(255,120,160,.9);
+  text-shadow:0 0 8px rgba(255,180,200,.7), 0 1px 0 rgba(255,220,160,.8);
+}
+.vwish-frame__jewel--t{ top:6px; }
+.vwish-frame__jewel--b{ bottom:6px; }
 
 /* Soft sparkles + hearts on video & note */
 .vwish-floaters{
   position:absolute;
-  inset:10px;
+  inset:14px;
   z-index:5;
   pointer-events:none;
   overflow:hidden;
-  border-radius:18px;
+  border-radius:16px;
 }
 .vwish-floaters--note{
   inset:0;
@@ -5201,9 +5246,9 @@ body{
 }
 .vwish-aurora{
   position:absolute;
-  inset:10px;
+  inset:14px;
   z-index:1;
-  border-radius:18px;
+  border-radius:16px;
   background:
     radial-gradient(40% 35% at 20% 30%, rgba(255,150,200,.22), transparent 70%),
     radial-gradient(35% 30% at 80% 20%, rgba(180,130,255,.18), transparent 70%);
@@ -5217,9 +5262,9 @@ body{
 }
 .vwish-motes{
   position:absolute;
-  inset:10px;
+  inset:14px;
   z-index:2;
-  border-radius:18px;
+  border-radius:16px;
   background-image:
     radial-gradient(circle, rgba(255,255,255,.55) 0 1px, transparent 2px),
     radial-gradient(circle, rgba(255,220,160,.45) 0 1px, transparent 2px);
@@ -5235,17 +5280,23 @@ body{
 }
 .vwish-media{
   position:absolute;
-  inset:10px;
+  inset:14px;
   z-index:3;
-  border-radius:18px;
+  border-radius:16px;
   overflow:hidden;
   display:grid;
   place-items:center;
   background:#1c1530;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.1),
+    0 0 0 1px rgba(160,60,100,.25);
 }
 /* Floaters sit above the video lightly without blocking clicks */
 .vwish-stage > .vwish-floaters{ z-index:5; }
+.vwish-video{
+  will-change:opacity;
+  backface-visibility:hidden;
+}
 .vwish-video,
 .vwish-cinema{
   width:100%;
@@ -5394,8 +5445,10 @@ body{
     border-radius:22px;
     padding:8px;
   }
-  .vwish-media{ inset:8px; border-radius:16px; }
-  .vwish-frame{ inset:6px; border-radius:16px; }
+  .vwish-media{ inset:12px; border-radius:14px; }
+  .vwish-frame{ inset:6px; border-radius:18px; }
+  .vwish-floaters{ inset:12px; border-radius:14px; }
+  .vwish-aurora, .vwish-motes{ inset:12px; border-radius:14px; }
   .vwish-note{
     width:min(92vw, 400px);
     padding:clamp(18px, 3.5vh, 28px) clamp(14px, 3.5vw, 22px);

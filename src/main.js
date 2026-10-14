@@ -70,11 +70,24 @@ import {
 let played = false;
 let replayArmed = false;
 
+function hideReplayBtn() {
+  const replay = $('replay');
+  if (!replay) return;
+  replay.classList.remove('is-shown');
+  replay.hidden = true;
+}
+
 function armReplay() {
+  // Never show Again while a modal/video is open
+  if (document.body.classList.contains('modal-open')) return;
   const replay = $('replay');
   if (replay) {
     replay.hidden = false;
     requestAnimationFrame(() => {
+      if (document.body.classList.contains('modal-open')) {
+        hideReplayBtn();
+        return;
+      }
       replay.classList.add('is-shown');
     });
   }
@@ -98,12 +111,7 @@ function resetAll() {
 
   window.bdayDone = false;
   replayArmed = false;
-
-  const replay = $('replay');
-  if (replay) {
-    replay.classList.remove('is-shown');
-    replay.hidden = true;
-  }
+  hideReplayBtn();
 
   resetScreen2();
   resetScreen1();
@@ -154,6 +162,9 @@ initCarrom({
     openCarromSlide({ onClose: resume });
   },
   onCompleteToTree: () => {
+    // Keep Again hidden until the heart finale fully completes
+    hideReplayBtn();
+    resetHeartGift();
     treeStart();
   },
 });

@@ -36,7 +36,12 @@ const T = {
   bloomSpan:  2.00,
   petalT0:    1.85,
   noteStart:  1.55,
-  done:       4.20,
+  // Swipe only after the heart bloom has fully settled
+  swipeStart: 0.35 + 2.00 + 0.55, // ~2.9s
+  // Finale “complete” after swipe is available + sunflowers settled
+  done:       4.80,
+  // Again only after the whole finale presentation is complete
+  replayAt:   6.40,
 };
 
 const SS = 168;
@@ -55,6 +60,7 @@ let treeStartT = 0, treeLastT = 0, treeRAF = 0, lastPetal = 0, replayArmed = fal
 let armReplayCallback = null;
 let onWishShownCallback = null;
 let wishShown = false;
+let giftArmed = false;
 
 function heartShape(c, x, top, w, h) {
   c.beginPath();
@@ -371,12 +377,12 @@ export function buildScene() {
   const isShort = H <= 640;
   const wide = W / H > 1.2;
 
-  // Centered heart bloom — solid silhouette, sized to leave room for dedication below
+  // Centered heart bloom — leave clear room below for swipe + birthday text on mobile
   cx = W * 0.5;
-  cy = H * (isShort ? 0.26 : isMobile ? 0.28 : 0.29);
+  cy = H * (isShort ? 0.24 : isMobile ? 0.26 : 0.29);
   ry = Math.min(
-    H * (isShort ? 0.20 : isMobile ? 0.22 : wide ? 0.24 : 0.23),
-    W * (isMobile ? 0.34 : 0.26)
+    H * (isShort ? 0.18 : isMobile ? 0.20 : wide ? 0.24 : 0.23),
+    W * (isMobile ? 0.32 : 0.26)
   );
   rx = ry * 1.12;
   groundY = H;
@@ -803,11 +809,16 @@ function drawRested() {
 
 export function showWish(on) {
   if (wishEl) wishEl.classList.toggle('is-in', on);
-  if (on && !wishShown && onWishShownCallback) {
-    wishShown = true;
-    onWishShownCallback(getHeartLayout());
-  }
-  if (!on) wishShown = false;
+  // Text only — swipe/gift arms separately after the heart finishes
+  if (on) wishShown = true;
+  else wishShown = false;
+}
+
+function armGiftIfReady(t) {
+  if (giftArmed || !onWishShownCallback) return;
+  if (t < T.swipeStart) return;
+  giftArmed = true;
+  onWishShownCallback(getHeartLayout());
 }
 
 /** Kept for callers that still import showCake — finale cake UI removed. */
@@ -844,9 +855,10 @@ function treeFrame(now) {
   drawFloaters(t, dt, true);
 
   showWish(t >= T.noteStart);
+  armGiftIfReady(t);
 
   if (!window.bdayDone && t >= T.done) window.bdayDone = true;
-  if (!replayArmed && t >= T.done + 1.0) {
+  if (!replayArmed && t >= T.replayAt) {
     replayArmed = true;
     if (armReplayCallback) armReplayCallback();
   }
@@ -855,7 +867,9 @@ function treeFrame(now) {
 }
 
 export function treeStart() {
-  treeStartT = 0; treeLastT = 0; lastPetal = 0; replayArmed = false; wishShown = false; window.bdayDone = false;
+  treeStartT = 0; treeLastT = 0; lastPetal = 0;
+  replayArmed = false; wishShown = false; giftArmed = false;
+  window.bdayDone = false;
   cue('grow');
   buildScene();
   if (!treeRAF) treeRAF = requestAnimationFrame(treeFrame);
@@ -865,6 +879,7 @@ export function treeStop() {
   if (treeRAF) { cancelAnimationFrame(treeRAF); treeRAF = 0; }
   if (ctx) ctx.clearRect(0, 0, W, H);
   wishShown = false;
+  giftArmed = false;
 }
 
 export function drawFinal() {
@@ -874,7 +889,13 @@ export function drawFinal() {
   drawSunflowers(99);
   drawFloaters(99, 0, true);
   showWish(true);
+  giftArmed = false;
+  armGiftIfReady(T.swipeStart);
   window.bdayDone = true;
+  if (!replayArmed && armReplayCallback) {
+    replayArmed = true;
+    armReplayCallback();
+  }
 }
 
 export function resizeTree(curW, curH, devicePR) {
