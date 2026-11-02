@@ -699,6 +699,7 @@ body{
   height:100%;
   pointer-events:none;
   z-index:15;
+  transform:translateZ(0);
 }
 
 /* Bottom Center Celebration Cake (resting directly on bottom floor) */
@@ -1119,9 +1120,12 @@ body{
   justify-content:center;
   gap:clamp(3px, 0.75vw, 8px);
   opacity:0;
-  transform:scale(0.85);
+  transform:scale(0.85) translateZ(0);
   pointer-events:none;
   overflow:visible;
+  filter:
+    drop-shadow(0 0 28px rgba(255, 105, 180, 0.75))
+    drop-shadow(0 0 45px rgba(210, 45, 140, 0.5));
 }
 
 .floral-char{
@@ -1131,23 +1135,20 @@ body{
   transform:translateZ(0);
   line-height:1.25;
   letter-spacing:0.02em;
-  padding:0.06em 0.04em 0.30em 0.04em; /* Generous bottom padding so descenders ('y') never get clipped by background-clip */
+  padding:0.06em 0.04em 0.30em 0.04em;
   background:linear-gradient(135deg, #ffffff 0%, #ffe4ec 30%, #ffd166 65%, #ff9ebb 100%);
   -webkit-background-clip:text;
   background-clip:text;
   -webkit-text-fill-color:transparent;
-  filter:
-    drop-shadow(0 0 14px rgba(255, 205, 120, 0.9))
-    drop-shadow(0 0 28px rgba(255, 105, 180, 0.75))
-    drop-shadow(0 0 45px rgba(210, 45, 140, 0.5));
-  will-change:transform, opacity;
+  filter:drop-shadow(0 0 14px rgba(255, 205, 120, 0.9));
   display:inline-block;
   vertical-align:baseline;
   overflow:visible;
 }
 
-.char-y{
-  padding-bottom:0.35em; /* Dedicated breathing room for Fraunces 900 sweeping descender tail */
+.char-y,
+.char-g{
+  padding-bottom:0.35em;
 }
 
 /* Floating Floral Blossoms & Petals around Anu */
@@ -1218,7 +1219,7 @@ body{
     margin-top:clamp(6px, 1.4vh, 14px);
   }
   .floral-char{
-    font-size:clamp(20px, 6.0vw, 32px); /* Balanced for 8 letters Nandhana on mobile */
+    font-size:clamp(20px, 6.0vw, 32px); /* Balanced for 8 letters Azhagiii on mobile */
   }
   .s2-cake-wrap{
     width:clamp(210px, 56vw, 290px);

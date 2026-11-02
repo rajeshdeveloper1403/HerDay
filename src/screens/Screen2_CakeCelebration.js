@@ -223,10 +223,39 @@ function ensureFireworksCanvas() {
   if (!fireworksCanvas) {
     fireworksCanvas = $('fireworksCanvas');
   }
-  if (fireworksCanvas) {
-    fwCtx = fireworksCanvas.getContext('2d');
-    fireworksCanvas.width = window.innerWidth;
-    fireworksCanvas.height = window.innerHeight;
+  if (!fireworksCanvas) return;
+  if (!fwCtx) {
+    fwCtx = fireworksCanvas.getContext('2d', { alpha: true, desynchronized: true }) || fireworksCanvas.getContext('2d');
+  }
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  if (fireworksCanvas.width !== w || fireworksCanvas.height !== h) {
+    fireworksCanvas.width = w;
+    fireworksCanvas.height = h;
+  }
+}
+
+function stopCakeFireworks() {
+  fwParticles = [];
+  fwRockets = [];
+  if (fwRAF) {
+    cancelAnimationFrame(fwRAF);
+    fwRAF = 0;
+  }
+  if (fwCtx && fireworksCanvas) {
+    fwCtx.setTransform(1, 0, 0, 1, 0, 0);
+    fwCtx.globalAlpha = 1;
+    fwCtx.globalCompositeOperation = 'source-over';
+    fwCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+  }
+}
+
+function fadeLooseParticles() {
+  for (let i = 0; i < fwParticles.length; i++) {
+    const p = fwParticles[i];
+    if (!p.isGlyph) {
+      p.decay = Math.max(p.decay || 0.01, (p.decay || 0.01) * 1.15);
+    }
   }
 }
 
@@ -429,7 +458,7 @@ function burstCracker(cx, cy, type = 'willow') {
       curX += letterWidth + letterSpacing;
     }
 
-    // Outer golden stardust bouquet around the Anu cracker
+    // Outer golden stardust bouquet around the Nandhana cracker
     const haloCount = isMobile ? 40 : 70;
     for (let i = 0; i < haloCount; i++) {
       const angle = rand(0, Math.PI * 2);
@@ -491,6 +520,8 @@ function burstCracker(cx, cy, type = 'willow') {
 
 function animateFireworks() {
   if (!fwCtx || !fireworksCanvas) return;
+  fwCtx.globalAlpha = 1;
+  fwCtx.globalCompositeOperation = 'source-over';
   fwCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
 
   for (let i = fwRockets.length - 1; i >= 0; i--) {
@@ -498,7 +529,6 @@ function animateFireworks() {
     r.step++;
     r.x += r.vx;
     r.y += r.vy;
-
 
     fwCtx.fillStyle = '#ffe082';
     fwCtx.globalAlpha = 0.4;
@@ -528,14 +558,15 @@ function animateFireworks() {
       });
     }
 
-
     if (r.step >= r.maxSteps) {
       burstCracker(r.targetX, r.targetY, r.type);
       fwRockets.splice(i, 1);
     }
   }
 
-  for (let i = fwParticles.length - 1; i >= 0; i--) {
+  let write = 0;
+  const n = fwParticles.length;
+  for (let i = 0; i < n; i++) {
     const p = fwParticles[i];
 
     if (p.isGlyph) {
@@ -549,11 +580,7 @@ function animateFireworks() {
         p.x += Math.sin(p.life * 0.1) * 0.5;
         p.alpha -= 0.022;
       }
-      if (p.alpha <= 0 || p.life >= p.maxLife) {
-        fwParticles.splice(i, 1);
-        continue;
-      }
-
+      if (p.alpha <= 0 || p.life >= p.maxLife) continue;
 
       const flicker = (Math.sin(p.life * p.flickerRate) * 0.35 + 0.65) * p.alpha;
       fwCtx.fillStyle = p.color;
@@ -567,7 +594,7 @@ function animateFireworks() {
       fwCtx.beginPath();
       fwCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       fwCtx.fill();
-
+      fwParticles[write++] = p;
       continue;
     }
 
@@ -577,14 +604,9 @@ function animateFireworks() {
     p.vx *= p.drag;
     p.vy *= p.drag;
     p.alpha -= p.decay;
+    if (p.alpha <= 0) continue;
 
-    if (p.alpha <= 0) {
-      fwParticles.splice(i, 1);
-      continue;
-    }
-
-
-    const flicker = p.flicker ? Math.random() * 0.4 + 0.6 : 1;
+    const flicker = p.flicker ? (0.6 + Math.sin(p.x * 0.21 + p.y * 0.17) * 0.4) : 1;
     const curA = Math.max(0, p.alpha * flicker);
 
     fwCtx.fillStyle = p.color;
@@ -598,9 +620,11 @@ function animateFireworks() {
     fwCtx.beginPath();
     fwCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     fwCtx.fill();
-
-
+    fwParticles[write++] = p;
   }
+  fwParticles.length = write;
+
+  fwCtx.globalAlpha = 1;
 
   if (fwRockets.length > 0 || fwParticles.length > 0) {
     fwRAF = requestAnimationFrame(animateFireworks);
@@ -712,10 +736,9 @@ export function blowCandles() {
     launchSideRocket(W * 0.78, H, W * 0.78, H * 0.33, 'heart');
   }, 950);
 
-  // Wave 3: ANU CRACKER BURST (AFTER heart crackers burst! ~1.85s after blow)
+  // Wave 3: NANDHANA CRACKER BURST (AFTER heart crackers burst! ~1.85s after blow)
   setTimeout(() => {
     if (isMobile) {
-      // In mobile: show the Anu cracker in the center stage below "Someone Worth Celebrating"
       let anuTargetX = W * 0.5;
       let anuTargetY = H * 0.48;
       if (anuCenterStage) {
@@ -727,26 +750,26 @@ export function blowCandles() {
       }
       launchSideRocket(W * 0.50, H, anuTargetX, anuTargetY, 'anu');
     } else {
-      // In laptop & big screens: show the Anu cracker in BOTH SIDES where crackers burst!
       launchSideRocket(W * 0.22, H, W * 0.22, H * 0.33, 'anu');
       launchSideRocket(W * 0.78, H, W * 0.78, H * 0.33, 'anu');
     }
   }, 1850);
 
-  // When cracker sparkles form ANU, morph them into radiant blooming flowers! (~3.0s after blow)
+  // When cracker sparkles form NANDHANA, morph them into blooming Azhagiii flowers (~3.0s)
   setTimeout(() => {
     morphCrackerToFlowers(isMobile);
   }, 3000);
 
-  // Wave 4: Celebratory sparkling side bouquets accompanying the flower bloom (~3.8s after blow)
+  // Wave 4: Celebratory sparkling side bouquets accompanying the flower bloom (~3.8s)
   setTimeout(() => {
     launchSideRocket(W * 0.12, H, W * 0.14, H * 0.24, 'peony');
     launchSideRocket(W * 0.88, H, W * 0.86, H * 0.24, 'willow');
   }, 3800);
 
-  // 6. Complete celebration & smoothly transition to Screen 3 (Tree Bloom)
-  // Displays flowers for several seconds, then transitions at ~7.4s!
+  // 6. Complete celebration & smoothly transition to Screen 3
   setTimeout(() => {
+    stopCakeFloat();
+    fadeLooseParticles();
     cue('bloom');
     const bloom = $('bloom');
     if (bloom) {
@@ -760,11 +783,13 @@ export function blowCandles() {
           duration: 0.75,
           ease: 'power2.in',
           onComplete: () => {
+            stopCakeFireworks();
             if (onCompleteCallback) onCompleteCallback();
           },
         }
       );
     } else {
+      stopCakeFireworks();
       if (onCompleteCallback) onCompleteCallback();
     }
   }, 7400);
@@ -774,110 +799,69 @@ export function blowCandles() {
    CRACKER TO FLOWERS TRANSFORMATION
    ------------------------------------------------------------ */
 
+function bloomFloralStage(stage, delay = 0) {
+  if (!stage) return;
+  gsap.set(stage, { opacity: 1, force3D: true });
+  const glow = stage.querySelector('.anu-spark-glow');
+  const floral = stage.querySelector('.s2-anu-floral');
+  const chars = stage.querySelectorAll('.floral-char');
+  const blossoms = stage.querySelectorAll('.blossom-pet');
+
+  if (glow) {
+    gsap.fromTo(
+      glow,
+      { opacity: 0, scale: 0.5 },
+      { opacity: 0.9, scale: 1.3, duration: 0.8, ease: 'power2.out', yoyo: true, repeat: 1, delay, overwrite: true }
+    );
+  }
+  if (floral) {
+    gsap.to(floral, { opacity: 1, scale: 1, duration: 0.7, ease: 'power2.out', delay, overwrite: true, force3D: true });
+  }
+  if (chars.length > 0) {
+    gsap.fromTo(
+      chars,
+      { opacity: 0, scale: 0.35, y: 16, force3D: true },
+      {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        force3D: true,
+        duration: 0.8,
+        stagger: 0.1,
+        ease: 'back.out(1.8)',
+        delay,
+        overwrite: true,
+      }
+    );
+  }
+  if (blossoms.length > 0) {
+    gsap.fromTo(
+      blossoms,
+      { opacity: 0, scale: 0, rotation: -60 },
+      {
+        opacity: 1,
+        scale: 1,
+        rotation: 0,
+        duration: 0.9,
+        stagger: 0.07,
+        ease: 'elastic.out(1.2, 0.45)',
+        delay,
+        overwrite: true,
+      }
+    );
+  }
+}
+
 function morphCrackerToFlowers(isMobile) {
   playFloralBloomChime();
 
   if (isMobile) {
-    if (anuCenterStage) gsap.set(anuCenterStage, { opacity: 1 });
-    const centerGlow = anuCenterStage ? anuCenterStage.querySelector('.anu-spark-glow') : null;
-    const centerFloral = anuCenterStage ? anuCenterStage.querySelector('.s2-anu-floral') : null;
-    const centerChars = anuCenterStage ? anuCenterStage.querySelectorAll('.floral-char') : [];
-    const centerBlossoms = anuCenterStage ? anuCenterStage.querySelectorAll('.blossom-pet') : [];
-
-    if (centerGlow) {
-      gsap.fromTo(
-        centerGlow,
-        { opacity: 0, scale: 0.5 },
-        { opacity: 0.9, scale: 1.3, duration: 0.8, ease: 'power2.out', yoyo: true, repeat: 1 }
-      );
-    }
-    if (centerFloral) {
-      gsap.to(centerFloral, { opacity: 1, scale: 1, duration: 0.7, ease: 'power2.out' });
-    }
-    if (centerChars.length > 0) {
-      gsap.fromTo(
-        centerChars,
-        { opacity: 0, scale: 0.35, y: 16, force3D: true },
-        {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          force3D: true,
-          duration: 0.8,
-          stagger: 0.12,
-          ease: 'back.out(1.8)',
-        }
-      );
-    }
-    if (centerBlossoms.length > 0) {
-      gsap.fromTo(
-        centerBlossoms,
-        { opacity: 0, scale: 0, rotation: -60 },
-        {
-          opacity: 1,
-          scale: 1,
-          rotation: 0,
-          duration: 0.9,
-          stagger: 0.08,
-          ease: 'elastic.out(1.2, 0.45)',
-        }
-      );
-    }
+    bloomFloralStage(anuCenterStage, 0);
   } else {
-    // Laptop / Big Screens: Reveal and bloom BOTH sides where crackers burst!
-    const sideStages = [anuSideLeft, anuSideRight].filter(Boolean);
-    sideStages.forEach((stage, idx) => {
-      gsap.set(stage, { opacity: 1 });
-      const glow = stage.querySelector('.anu-spark-glow');
-      const floral = stage.querySelector('.s2-anu-floral');
-      const chars = stage.querySelectorAll('.floral-char');
-      const blossoms = stage.querySelectorAll('.blossom-pet');
-
-      if (glow) {
-        gsap.fromTo(
-          glow,
-          { opacity: 0, scale: 0.5 },
-          { opacity: 0.9, scale: 1.3, duration: 0.8, ease: 'power2.out', yoyo: true, repeat: 1, delay: idx * 0.05 }
-        );
-      }
-      if (floral) {
-        gsap.to(floral, { opacity: 1, scale: 1, duration: 0.7, ease: 'power2.out', delay: idx * 0.05 });
-      }
-      if (chars.length > 0) {
-        gsap.fromTo(
-          chars,
-          { opacity: 0, scale: 0.35, y: 16, force3D: true },
-          {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            force3D: true,
-            duration: 0.8,
-            stagger: 0.1,
-            ease: 'back.out(1.8)',
-            delay: idx * 0.05,
-          }
-        );
-      }
-      if (blossoms.length > 0) {
-        gsap.fromTo(
-          blossoms,
-          { opacity: 0, scale: 0, rotation: -60 },
-          {
-            opacity: 1,
-            scale: 1,
-            rotation: 0,
-            duration: 0.9,
-            stagger: 0.07,
-            ease: 'elastic.out(1.2, 0.45)',
-            delay: idx * 0.05,
-          }
-        );
-      }
-    });
+    bloomFloralStage(anuSideLeft, 0);
+    bloomFloralStage(anuSideRight, 0.05);
   }
 
-  // Atmospheric gentle floral stardust floating outwards
   if (fwCtx && fireworksCanvas) {
     const W = window.innerWidth;
     const H = window.innerHeight;
@@ -1001,16 +985,8 @@ export function resetCakeCelebration() {
   isScreen2Active = false;
   isBlown = false;
   isCelebrating = false;
-  fwParticles = [];
-  fwRockets = [];
   stopCakeFloat();
-  if (fwRAF) {
-    cancelAnimationFrame(fwRAF);
-    fwRAF = 0;
-  }
-  if (fwCtx && fireworksCanvas) {
-    fwCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
-  }
+  stopCakeFireworks();
   if (smokesContainer) {
     gsap.set(smokesContainer, { opacity: 0 });
   }

@@ -32,6 +32,7 @@ export function initCursorCanvas() {
 
   function isSuppressed(e) {
     if (document.body.classList.contains('modal-open')) return true;
+    if (document.body.classList.contains('vhs-active')) return true;
     const modalIds = ['galleryModal', 'letterModal', 'lanternModal', 'giftModal', 'constellationModal', 'carromSlideModal'];
     for (let i = 0; i < modalIds.length; i++) {
       const m = $(modalIds[i]);

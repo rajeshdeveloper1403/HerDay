@@ -47,10 +47,17 @@ import { setupVideoWishModal, openVideoWish, closeVideoWish, resetVideoWish } fr
 
 import {
   initCarrom,
-  startCarrom,
+  // startCarrom,
   resetCarrom,
   resizeCarrom,
 } from './screens/Screen3_Carrom.js';
+
+import {
+  initFilmography,
+  startFilmography,
+  resetFilmography,
+  resizeFilmography,
+} from './screens/Screen3_Filmography.js';
 
 // Interactive Features
 import { setupMusicBox, startMusicBox, handleUserActivation } from './features/MusicPlayer.js';
@@ -101,6 +108,7 @@ function resetAll() {
   showCake(false);
   resetCake();
   resetCarrom();
+  resetFilmography();
   resetHeartGift();
   resetVideoWish();
   closeGallery();
@@ -159,14 +167,23 @@ initScreen1({
 initScreen2();
 initCakeCelebration({
   onCelebrationComplete: () => {
+    const stardust = $('stardustField');
+    if (stardust) {
+      gsap.killTweensOf(stardust.querySelectorAll('.stardust-p'));
+      stardust.innerHTML = '';
+    }
     gsap.set($('field'), { autoAlpha: 0 });
     gsap.to($('bloom'), { autoAlpha: 0, duration: 1.0, ease: 'power2.out' });
-    // Screen 3 — Heart Carrom (tree becomes Screen 4 after U)
-    startCarrom();
+    // Screen 3 — VHS filmography (carrom parked below)
+    startFilmography();
+    // startCarrom();
   },
 });
 
-// 3. Heart Carrom board
+// 3. VHS filmography shelf
+initFilmography();
+
+// 3b. Heart Carrom board (parked — restore by swapping startFilmography() for startCarrom())
 initCarrom({
   onOpenMemories: (resume) => {
     openGallery(0, { onClose: resume });
@@ -238,6 +255,7 @@ function resize() {
 
   resizeTree(curW, curH, dpr);
   resizeCarrom();
+  resizeFilmography();
 
   if (reduceMotion) {
     drawFinal();
