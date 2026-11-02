@@ -31,6 +31,9 @@ const SPAN = 0.449;
 const BETA = 0.6;
 const TILT_X = 4.5;
 const TILT_Y = 7;
+const DRAG_ARM = 14; // px before a curl starts (kills mobile jitter)
+const TAP_MAX = 10; // px — treat as tap
+const SETTLE_MS = 280; // ignore input briefly after open / intro
 
 let overlay, wrap, stage, sb3d, book, leftBtn, rightBtn;
 let idx = 0;
@@ -49,6 +52,10 @@ let introOn = false;
 let riffle = null;
 let riffleAt = 0;
 let introQueued = false;
+let settleUntil = 0;
+let resizeTimer = null;
+let activePointer = null;
+let turning = false; // true while a commit/cancel spring is running
 
 const view = { rx: 0, ry: 0, z: 1, trx: 0, try_: 0, tz: 1 };
 let viewActive = false;
@@ -63,8 +70,12 @@ function wrapN() {
   return introOn ? SKETCH_N : PHOTO_N;
 }
 
+function isCoarse() {
+  return window.matchMedia('(pointer: coarse)').matches;
+}
+
 function stripCount() {
-  return window.matchMedia('(pointer: coarse)').matches ? 12 : 18;
+  return isCoarse() ? 8 : 18;
 }
 
 function useBlur() {
@@ -73,6 +84,10 @@ function useBlur() {
 
 function phonePortrait() {
   return window.matchMedia('(orientation: portrait) and (max-width: 900px)').matches;
+}
+
+function canInteract() {
+  return open && !closing && !introOn && !turning && performance.now() >= settleUntil;
 }
 
 function syncRotate() {
@@ -108,6 +123,7 @@ function imgEl(i, side) {
   im.className = 'sb-half-img ' + side;
   im.draggable = false;
   im.alt = '';
+  im.decoding = 'async';
   im.src = faceUrl(i);
   return im;
 }
@@ -156,6 +172,7 @@ function buildCurl(dir, from, to) {
 }
 
 function applyTurn(t) {
+  if (!sb3d) return;
   const th = Math.PI * t;
   const beta = BETA * Math.sin(Math.PI * t);
   const D = 180 / Math.PI;
@@ -189,6 +206,7 @@ function paint() {
     im.src = faceUrl(idx);
     im.alt = '';
     im.draggable = false;
+    im.decoding = 'async';
     f.appendChild(im);
     book.appendChild(f);
     sb3d.style.setProperty('--shade', '0');
@@ -216,12 +234,24 @@ function animateTo(target, onDone, stiff, damp) {
 }
 
 function applyView() {
+  if (!sb3d) return;
   sb3d.style.setProperty('--rx', view.rx.toFixed(2) + 'deg');
   sb3d.style.setProperty('--ry', view.ry.toFixed(2) + 'deg');
   sb3d.style.setProperty('--zoom', view.z.toFixed(3));
 }
 
 function viewSpring() {
+  if (isCoarse()) {
+    // Mobile: no continuous tilt spring — kills idle GPU jitter
+    if (view.rx || view.ry || view.z !== 1) {
+      view.rx = view.trx = 0;
+      view.ry = view.try_ = 0;
+      view.z = view.tz = 1;
+      applyView();
+    }
+    viewActive = false;
+    return false;
+  }
   const e = 0.14;
   let moved = false;
   for (const [k, t] of [['rx', 'trx'], ['ry', 'try_'], ['z', 'tz']]) {
@@ -237,6 +267,7 @@ function viewSpring() {
 }
 
 function setView(rx, ry, z) {
+  if (isCoarse()) return;
   view.trx = Math.max(-TILT_X, Math.min(TILT_X, rx));
   view.try_ = Math.max(-TILT_Y, Math.min(TILT_Y, ry));
   view.tz = Math.max(0.9, Math.min(1.15, z));
@@ -245,7 +276,7 @@ function setView(rx, ry, z) {
 }
 
 function tiltTo(cx, cy) {
-  if (drag || !book) return;
+  if (drag || !book || isCoarse()) return;
   const r = book.getBoundingClientRect();
   if (!r.width) return;
   const nx = Math.max(-1, Math.min(1, (cx - (r.left + r.width / 2)) / (r.width * 0.62)));
@@ -283,7 +314,8 @@ function tick(now) {
     }
   }
   viewSpring();
-  if ((spring || viewActive || introOn) && raf === null) raf = requestAnimationFrame(tick);
+  // Do NOT keep RAF alive just because introOn — that caused idle mobile glitch
+  if ((spring || viewActive) && raf === null) raf = requestAnimationFrame(tick);
 }
 
 function tweenTo(target, dur, onDone) {
@@ -294,16 +326,18 @@ function tweenTo(target, dur, onDone) {
 function endIntro(reset) {
   introOn = false;
   riffle = null;
+  riffleAt = 0;
   wrap?.classList.remove('intro', 'b2');
   if (reset) idx = 0;
+  settleUntil = performance.now() + SETTLE_MS;
 }
 
 function riffleStep() {
   if (!introOn || !riffle) return;
   const s = riffle[riffleAt];
-  const last = riffleAt === riffle.length - 1;
-  wrap?.classList.toggle('b2', !last && s.bell > 0.55);
-  if (last) {
+  const lastStep = riffleAt === riffle.length - 1;
+  wrap?.classList.toggle('b2', !lastStep && s.bell > 0.55);
+  if (lastStep) {
     wrap?.classList.remove('intro', 'b2');
     startTurn('next', 0, {
       from: sketchUrl(idx),
@@ -314,10 +348,15 @@ function riffleStep() {
     startTurn('next', 0);
   }
   tweenTo(1, s.dur, () => {
+    if (!introOn) {
+      turn = null;
+      paint();
+      return;
+    }
     idx = turn.to;
     turn = null;
     riffleAt += 1;
-    if (introOn && riffleAt < riffle.length) {
+    if (riffleAt < riffle.length) {
       paint();
       riffleStep();
     } else {
@@ -329,7 +368,8 @@ function riffleStep() {
 }
 
 function startIntro() {
-  if (reduced) {
+  // Mobile: skip heavy auto-riffle — it looked like pages flipping by themselves
+  if (reduced || isCoarse()) {
     endIntro(true);
     paint();
     return;
@@ -377,35 +417,54 @@ function startTurn(dir, t, urls) {
 
 function commit() {
   if (!turn) return;
-  if (reduced) {
+  turning = true;
+  if (reduced || isCoarse()) {
+    // Mobile: instant settle — smoother than fighting spring + rebuild
     idx = turn.to;
     turn = null;
+    spring = null;
+    turning = false;
     paint();
+    settleUntil = performance.now() + 120;
     return;
   }
   animateTo(1, () => {
     idx = turn.to;
     turn = null;
+    turning = false;
     paint();
+    settleUntil = performance.now() + 80;
   }, 170, 26);
   kick();
 }
 
 function cancel() {
   if (!turn) return;
+  turning = true;
+  if (reduced || isCoarse()) {
+    turn = null;
+    spring = null;
+    turning = false;
+    paint();
+    return;
+  }
   animateTo(0, () => {
     turn = null;
+    turning = false;
     paint();
   }, 150, 24);
   kick();
 }
 
 function step(dir) {
+  if (!canInteract() && !introOn) return;
   if (introOn) endIntro(true);
   if (turn) {
     idx = turn.to;
     turn = null;
   }
+  spring = null;
+  drag = null;
   startTurn(dir, 0);
   commit();
 }
@@ -417,27 +476,62 @@ function bookRect() {
 function onStageDown(e) {
   if (!open || e.button !== 0) return;
   if (e.target.closest('.az-sketch__close, .sb-arrow')) return;
+  // Only track one pointer — ignores palm / multi-touch ghosts
+  if (activePointer != null && e.pointerId !== activePointer) return;
   e.preventDefault();
+
   if (introOn) {
     endIntro(true);
     paint();
     return;
   }
+  if (!canInteract()) return;
+
   const onBook = e.target.closest('.sb-zone');
-  try { stage.setPointerCapture(e.pointerId); } catch (_) {}
   if (!onBook) return;
+
+  activePointer = e.pointerId;
+  try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+
   const r = bookRect();
   const dir = (e.clientX - r.left) / r.width > 0.5 ? 'next' : 'prev';
-  startTurn(dir, 0);
-  drag = { dir, x0: e.clientX, w: r.width, moved: 0, vel: 0, tPrev: performance.now() };
+  // Do NOT build curl yet — wait for intentional drag (stops mobile micro-jitter glitch)
+  drag = {
+    dir,
+    x0: e.clientX,
+    y0: e.clientY,
+    w: r.width,
+    moved: 0,
+    vel: 0,
+    tPrev: performance.now(),
+    armed: false,
+  };
 }
 
 function onStageMove(e) {
   if (!open) return;
-  if (e.pointerType !== 'touch') tiltTo(e.clientX, e.clientY);
+  if (activePointer != null && e.pointerId !== activePointer) return;
+  if (e.pointerType === 'mouse') tiltTo(e.clientX, e.clientY);
   if (!drag) return;
+
   const dx = e.clientX - drag.x0;
-  drag.moved = Math.max(drag.moved, Math.abs(dx));
+  const dy = e.clientY - drag.y0;
+  drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+
+  // Arm curl only after clear horizontal intent
+  if (!drag.armed) {
+    if (drag.moved < DRAG_ARM) return;
+    // Prefer horizontal page-turn; ignore mostly-vertical scroll jitter
+    if (Math.abs(dy) > Math.abs(dx) * 1.25) {
+      drag = null;
+      activePointer = null;
+      try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
+      return;
+    }
+    drag.armed = true;
+    startTurn(drag.dir, 0);
+  }
+
   const raw = (drag.dir === 'next' ? -dx : dx) / (drag.w * 0.62);
   const t = Math.max(0, Math.min(1, raw));
   const now = performance.now();
@@ -449,22 +543,35 @@ function onStageMove(e) {
   }
 }
 
-function endDrag() {
-  if (!drag) return;
-  const d = drag;
-  drag = null;
-  if (!turn) return;
-  if (d.moved < 6) {
-    commit();
+function endDrag(e) {
+  if (e && activePointer != null && e.pointerId !== activePointer) return;
+  if (!drag) {
+    activePointer = null;
     return;
   }
+  const d = drag;
+  drag = null;
+  activePointer = null;
+  try {
+    if (e) stage.releasePointerCapture(e.pointerId);
+  } catch (_) {}
+
+  if (!d.armed) {
+    // Clean tap → turn page once
+    if (d.moved <= TAP_MAX && canInteract()) {
+      startTurn(d.dir, 0);
+      commit();
+    }
+    return;
+  }
+  if (!turn) return;
   const go = turn.t > 0.42 || d.vel > 1.1;
   if (go) commit();
   else cancel();
 }
 
 function onKey(e) {
-  if (!open) return;
+  if (!open || !canInteract()) return;
   if (e.key === 'ArrowLeft') {
     e.preventDefault();
     step('prev');
@@ -476,21 +583,36 @@ function onKey(e) {
 
 function onResize() {
   if (!open) return;
-  syncRotate();
-  layout();
+  // Debounce — mobile URL-bar show/hide fires many resizes
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    resizeTimer = null;
+    if (!open) return;
+    syncRotate();
+    layout();
+  }, 120);
 }
 
 function bind() {
   if (bound) return;
   bound = true;
-  stage.addEventListener('pointerdown', onStageDown);
-  stage.addEventListener('pointermove', onStageMove);
+  stage.addEventListener('pointerdown', onStageDown, { passive: false });
+  stage.addEventListener('pointermove', onStageMove, { passive: false });
   stage.addEventListener('pointerup', endDrag);
   stage.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('lostpointercapture', () => {
+    if (drag) endDrag();
+  });
   stage.addEventListener('dragstart', (e) => e.preventDefault());
   stage.addEventListener('selectstart', (e) => e.preventDefault());
-  leftBtn.addEventListener('click', () => step('prev'));
-  rightBtn.addEventListener('click', () => step('next'));
+  leftBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (canInteract()) step('prev');
+  });
+  rightBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (canInteract()) step('next');
+  });
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', onResize);
   window.addEventListener('orientationchange', onResize);
@@ -535,6 +657,8 @@ export function openSketchbook() {
   turn = null;
   spring = null;
   drag = null;
+  activePointer = null;
+  turning = false;
   view.rx = view.trx = 0;
   view.ry = view.try_ = 0;
   view.z = view.tz = 1;
@@ -545,19 +669,32 @@ export function openSketchbook() {
   overlay.setAttribute('aria-hidden', 'false');
   document.body.classList.add('az-book-open');
   applyView();
-  introOn = !reduced;
+
+  // Mobile: no auto-riffle. Desktop: keep cinematic intro.
+  const doIntro = !reduced && !isCoarse();
+  introOn = doIntro;
   if (introOn && useBlur()) wrap?.classList.add('intro');
+  else wrap?.classList.remove('intro', 'b2');
+
+  settleUntil = performance.now() + SETTLE_MS;
+
   requestAnimationFrame(() => {
     layout();
     paint();
     requestAnimationFrame(() => {
       layout();
       if (phonePortrait()) {
-        introQueued = !reduced;
+        introQueued = doIntro;
         overlay.classList.add('need-rotate');
+        endIntro(true);
+        paint();
         return;
       }
-      setTimeout(startIntro, 40);
+      if (doIntro) setTimeout(startIntro, 40);
+      else {
+        endIntro(true);
+        paint();
+      }
     });
   });
 }
@@ -572,9 +709,15 @@ export function closeSketchbook() {
   open = false;
   introQueued = false;
   drag = null;
+  activePointer = null;
   spring = null;
   turn = null;
+  turning = false;
   endIntro();
+  if (resizeTimer) {
+    clearTimeout(resizeTimer);
+    resizeTimer = null;
+  }
   document.body.classList.remove('az-book-open');
   overlay.classList.add('is-leaving');
   overlay.classList.remove('is-on', 'need-rotate');

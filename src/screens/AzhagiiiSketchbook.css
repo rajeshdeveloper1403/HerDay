@@ -261,7 +261,9 @@ body.az-book-open .replay{
   position:relative;
   transform-style:preserve-3d;
   transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(var(--zoom,1));
-  will-change:transform;
+}
+@media (pointer:fine){
+  .sb-tilt{ will-change:transform; }
 }
 .sb-book{
   position:relative;
@@ -435,6 +437,16 @@ body.az-book-open .replay{
   .sb-wrap.intro.b2 .sb-full img,
   .sb-wrap.intro.b2 .sb-half-img,
   .sb-wrap.intro.b2 .face{ filter:none; }
+  /* Mobile: simpler shadows (blur filters caused idle shimmer) */
+  .sb-cast.ambient,
+  .sb-cast.contact,
+  .sb-cast.hair{ filter:none; opacity:.2; }
+  /* Keep 3D for curls; lock tilt so the book doesn't wobble idle */
+  .sb-tilt{
+    transform:none;
+  }
+  .sb-stage{ touch-action:none; -webkit-user-select:none; user-select:none; }
+  .sb-zone{ touch-action:none; }
 }
 
 @media (prefers-reduced-motion:reduce){
