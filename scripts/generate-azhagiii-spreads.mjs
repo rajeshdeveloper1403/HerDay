@@ -304,10 +304,10 @@ function writeNote(ctx, note, box, color = '#3a3228') {
   const wrapW = maxW * 0.98;
 
   const trials = [
-    { title: 30, quote: 16.5, body: 17.5, close: 15.5, row: 1.48, sec: 1 },
-    { title: 27, quote: 15.5, body: 16.5, close: 14.5, row: 1.42, sec: 0.94 },
-    { title: 24, quote: 14.5, body: 15.5, close: 14, row: 1.38, sec: 0.88 },
-    { title: 21, quote: 14, body: 14.5, close: 13.5, row: 1.34, sec: 0.84 },
+    { title: 34, quote: 18.5, body: 17, close: 15.5, row: 1.46, sec: 1 },
+    { title: 31, quote: 17.5, body: 16, close: 14.5, row: 1.4, sec: 0.94 },
+    { title: 28, quote: 16.5, body: 15.2, close: 14, row: 1.36, sec: 0.88 },
+    { title: 24, quote: 15.5, body: 14.5, close: 13.5, row: 1.32, sec: 0.84 },
   ];
 
   const build = (t) => {
@@ -388,9 +388,9 @@ function writeLetterPage(ctx, paras, box, opts = {}) {
   const color = '#3a3228';
 
   const trials = [
-    { head: 24, body: 15, wish: 14.5, wishHead: 19.5, row: 1.42, sec: 1 },
-    { head: 22, body: 14.2, wish: 13.8, wishHead: 18, row: 1.36, sec: 0.92 },
-    { head: 20, body: 13.4, wish: 13.2, wishHead: 16.5, row: 1.3, sec: 0.86 },
+    { head: 28, body: 14.6, wish: 14.5, wishHead: 22, row: 1.4, sec: 1 },
+    { head: 25, body: 14, wish: 13.8, wishHead: 20, row: 1.34, sec: 0.92 },
+    { head: 22, body: 13.2, wish: 13.2, wishHead: 18, row: 1.28, sec: 0.86 },
   ];
 
   const build = (t) => {

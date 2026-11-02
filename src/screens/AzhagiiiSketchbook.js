@@ -2,16 +2,16 @@
 import './AzhagiiiSketchbook.css';
 
 const PHOTOS = [
-  '/photos/az-book/p0.png?v=27',
-  '/photos/az-book/p1.png?v=27',
-  '/photos/az-book/p2.png?v=27',
-  '/photos/az-book/p3.png?v=27',
-  '/photos/az-book/p4.png?v=27',
-  '/photos/az-book/p5.png?v=27',
-  '/photos/az-book/p6.png?v=27',
-  '/photos/az-book/p7.png?v=27',
-  '/photos/az-book/p8.png?v=27',
-  '/photos/az-book/p9.png?v=27',
+  '/photos/az-book/p0.png?v=28',
+  '/photos/az-book/p1.png?v=28',
+  '/photos/az-book/p2.png?v=28',
+  '/photos/az-book/p3.png?v=28',
+  '/photos/az-book/p4.png?v=28',
+  '/photos/az-book/p5.png?v=28',
+  '/photos/az-book/p6.png?v=28',
+  '/photos/az-book/p7.png?v=28',
+  '/photos/az-book/p8.png?v=28',
+  '/photos/az-book/p9.png?v=28',
 ];
 const SKETCHES = [
   '/photos/az-book/sketches/marina-bay-sands.png',
@@ -75,7 +75,8 @@ function isCoarse() {
 }
 
 function stripCount() {
-  return isCoarse() ? 8 : 18;
+  // Enough strips for a real curl on phones, without desktop weight
+  return isCoarse() ? 12 : 18;
 }
 
 function useBlur() {
@@ -418,8 +419,7 @@ function startTurn(dir, t, urls) {
 function commit() {
   if (!turn) return;
   turning = true;
-  if (reduced || isCoarse()) {
-    // Mobile: instant settle — smoother than fighting spring + rebuild
+  if (reduced) {
     idx = turn.to;
     turn = null;
     spring = null;
@@ -428,31 +428,36 @@ function commit() {
     settleUntil = performance.now() + 120;
     return;
   }
+  // Real page-curl on mobile + desktop (mobile spring a bit snappier)
+  const stiff = isCoarse() ? 220 : 170;
+  const damp = isCoarse() ? 30 : 26;
   animateTo(1, () => {
     idx = turn.to;
     turn = null;
     turning = false;
     paint();
-    settleUntil = performance.now() + 80;
-  }, 170, 26);
+    settleUntil = performance.now() + (isCoarse() ? 100 : 80);
+  }, stiff, damp);
   kick();
 }
 
 function cancel() {
   if (!turn) return;
   turning = true;
-  if (reduced || isCoarse()) {
+  if (reduced) {
     turn = null;
     spring = null;
     turning = false;
     paint();
     return;
   }
+  const stiff = isCoarse() ? 200 : 150;
+  const damp = isCoarse() ? 28 : 24;
   animateTo(0, () => {
     turn = null;
     turning = false;
     paint();
-  }, 150, 24);
+  }, stiff, damp);
   kick();
 }
 

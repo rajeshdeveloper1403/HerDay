@@ -441,9 +441,10 @@ body.az-book-open .replay{
   .sb-cast.ambient,
   .sb-cast.contact,
   .sb-cast.hair{ filter:none; opacity:.2; }
-  /* Keep 3D for curls; lock tilt so the book doesn't wobble idle */
+  /* Keep preserve-3d so page-curl works; tilt locked via JS (rx/ry = 0) */
   .sb-tilt{
-    transform:none;
+    transform-style:preserve-3d;
+    transform:rotateX(0deg) rotateY(0deg) scale(1);
   }
   .sb-stage{ touch-action:none; -webkit-user-select:none; user-select:none; }
   .sb-zone{ touch-action:none; }
