@@ -38,7 +38,7 @@ export function closeLanternModal(shouldPopHistory = true) {
 export function updateLanternTagPreview(text) {
   const tag = $('lanternTagPreview');
   if (tag) {
-    tag.textContent = 'Anu ✦ ' + (text || 'Pure Joy');
+    tag.textContent = 'Nandhana ✦ ' + (text || 'Pure Joy');
   }
 }
 
@@ -95,7 +95,7 @@ function createSingleLantern(wishText, xPercent, isCompanion = false, delayMs = 
     if (!isCompanion) {
       const tag = document.createElement('div');
       tag.className = 'sky-lantern__tag';
-      tag.textContent = '💜 Anu ✦ ' + wishText;
+      tag.textContent = '💜 Nandhana ✦ ' + wishText;
       lantern.appendChild(tag);
     }
 
@@ -164,7 +164,7 @@ export function spawnSkyLantern(wishText) {
   const skyToast = $('skyWishToast');
   const skyToastTag = $('skyWishToastTag');
   if (skyToast && skyToastTag) {
-    skyToastTag.textContent = 'Anu ✦ ' + wishText;
+    skyToastTag.textContent = 'Nandhana ✦ ' + wishText;
     skyToast.classList.add('is-active');
     setTimeout(() => {
       skyToast.classList.remove('is-active');

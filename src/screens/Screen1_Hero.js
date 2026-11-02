@@ -70,24 +70,19 @@ export function refreshRig(viewportW = window.innerWidth, viewportH = window.inn
   if (!archery || !target) return;
   const W = viewportW;
   const H = viewportH;
-  const isSmallMobile = W <= 390;
   const isMobile = W <= 680;
   const isTablet = W > 680 && W <= 1024;
   const isShort  = H <= 580;
 
   let cupidX, cupidY;
-  if (isSmallMobile) {
-    cupidX = Math.max(10, W * 0.04);
-    cupidY = isShort ? H * 0.74 : H * 0.75;
-  } else if (isMobile) {
-    cupidX = Math.max(14, W * 0.06);
-    cupidY = isShort ? H * 0.71 : H * 0.73;
+  if (isMobile) {
+    cupidX = Math.max(16, W * 0.08);
+    cupidY = isShort ? H * 0.70 : H * 0.72;
   } else if (isTablet) {
-    cupidX = Math.max(26, W * 0.11);
+    cupidX = Math.max(28, W * 0.12);
     cupidY = isShort ? H * 0.68 : H * 0.70;
   } else {
-    // Desktop: clamp max distance so Cupid stays aesthetically balanced
-    cupidX = Math.min(Math.max(38, W * 0.13), 260);
+    cupidX = Math.max(40, W * 0.14);
     cupidY = isShort ? H * 0.67 : H * 0.69;
   }
 
@@ -95,16 +90,16 @@ export function refreshRig(viewportW = window.innerWidth, viewportH = window.inn
   nockProxy.y = REST_NOCK_Y;
   applyNock();
 
-  gsap.set(archery, { rotation: 0, scale: 1, x: 0, y: 0, force3D: true });
+  gsap.set(archery, { rotation: 0, scale: 1, x: 0, y: 0 });
   archery.style.left = cupidX + 'px';
   archery.style.top  = (cupidY - (archery.offsetHeight || 130) * 0.5) + 'px';
-  gsap.set(arrow, { x: 0, y: 0, force3D: true });
-  if (cupidArmWrap) gsap.set(cupidArmWrap, { x: 0, y: 0, rotation: 0, force3D: true });
+  gsap.set(arrow, { x: 0, y: 0 });
+  if (cupidArmWrap) gsap.set(cupidArmWrap, { x: 0, y: 0, rotation: 0 });
 
   const aR = archery.getBoundingClientRect();
   const tRect = target.getBoundingClientRect();
   const tcx = tRect.left + tRect.width / 2;
-  const tcy = tRect.top + tRect.height * 0.52;
+  const tcy = tRect.top + tRect.height / 2;
 
   svgScale = aR.width / 1316;
   const bowScreenX = aR.left + (986 / 1316) * aR.width;
@@ -115,7 +110,7 @@ export function refreshRig(viewportW = window.innerWidth, viewportH = window.inn
 
   const aimer = $('cupidAim') || cupidFlyer;
   if (aimer) {
-    gsap.set(aimer, { rotation: aimDeg, transformOrigin: '75.0% 44.5%', force3D: true });
+    gsap.set(aimer, { rotation: aimDeg, transformOrigin: '75.0% 44.5%' });
   }
 
   pullUX = -Math.cos(aimRad);
@@ -127,13 +122,12 @@ export function refreshRig(viewportW = window.innerWidth, viewportH = window.inn
 
 export function setDraw(d) {
   curDraw = clamp(d, 0, maxDraw);
-  gsap.set(arrow, { x: -curDraw, y: 0, force3D: true });
+  gsap.set(arrow, { x: -curDraw, y: 0 });
   if (cupidArmWrap) {
     gsap.set(cupidArmWrap, {
       x: -curDraw * 0.98,
       y: curDraw * 0.04,
       rotation: curDraw * 0.02,
-      force3D: true,
     });
   }
   const sc = svgScale || 0.15;
@@ -145,16 +139,15 @@ export function setDraw(d) {
 
 export function startBeat() {
   if (!targetHeart || !heartGlow) return;
-  gsap.set(targetHeart, { scale: 1, force3D: true });
-  gsap.set(heartGlow, { scale: 1, opacity: 0.7, force3D: true });
-  if (beatTL) beatTL.kill();
+  gsap.set(targetHeart, { scale: 1 });
+  gsap.set(heartGlow, { scale: 1, opacity: 0.7 });
   beatTL = gsap.timeline({ repeat: -1, repeatDelay: 0.5 });
-  beatTL.to(targetHeart, { scale: 1.07, duration: 0.13, ease: 'power2.out', force3D: true }, 0)
-        .to(heartGlow,   { scale: 1.15, opacity: 0.9, duration: 0.13, ease: 'power2.out', force3D: true }, 0)
-        .to(targetHeart, { scale: 1.0, duration: 0.2, ease: 'power2.in', force3D: true }, 0.13)
-        .to(targetHeart, { scale: 1.05, duration: 0.12, ease: 'power2.out', force3D: true }, 0.3)
-        .to(targetHeart, { scale: 1.0, duration: 0.5, ease: 'power2.inOut', force3D: true }, 0.42)
-        .to(heartGlow,   { scale: 1.0, opacity: 0.7, duration: 0.7, ease: 'power2.inOut', force3D: true }, 0.3);
+  beatTL.to(targetHeart, { scale: 1.07, duration: 0.13, ease: 'power2.out' }, 0)
+        .to(heartGlow,   { scale: 1.15, opacity: 0.9, duration: 0.13, ease: 'power2.out' }, 0)
+        .to(targetHeart, { scale: 1.0, duration: 0.2, ease: 'power2.in' }, 0.13)
+        .to(targetHeart, { scale: 1.05, duration: 0.12, ease: 'power2.out' }, 0.3)
+        .to(targetHeart, { scale: 1.0, duration: 0.5, ease: 'power2.inOut' }, 0.42)
+        .to(heartGlow,   { scale: 1.0, opacity: 0.7, duration: 0.7, ease: 'power2.inOut' }, 0.3);
 }
 
 export function stopBeat() {
@@ -374,9 +367,6 @@ export function initScreen1({ onFire, onUserActivation } = {}) {
   }
 
   if (archery) {
-    let dragRAF = 0;
-    let pendingDraw = 0;
-
     archery.addEventListener('pointerdown', (e) => {
       if (played) return;
       if (onUserActivationCallback) onUserActivationCallback();
@@ -391,23 +381,12 @@ export function initScreen1({ onFire, onUserActivation } = {}) {
     archery.addEventListener('pointermove', (e) => {
       if (!drawing) return;
       const proj = (e.clientX - startPX) * pullUX + (e.clientY - startPY) * pullUY;
-      pendingDraw = startDraw + proj;
-      if (!dragRAF) {
-        dragRAF = requestAnimationFrame(() => {
-          dragRAF = 0;
-          setDraw(pendingDraw);
-        });
-      }
+      setDraw(startDraw + proj);
     });
 
     const endDraw = (e) => {
       if (!drawing) return;
       drawing = false;
-      if (dragRAF) {
-        cancelAnimationFrame(dragRAF);
-        dragRAF = 0;
-      }
-      try { archery.releasePointerCapture(e.pointerId); } catch (_) {}
       const dist = e && e.clientX !== undefined ? Math.hypot(e.clientX - startPX, e.clientY - startPY) : 0;
       if (curDraw > maxDraw * 0.22) {
         fire();
@@ -428,16 +407,4 @@ export function initScreen1({ onFire, onUserActivation } = {}) {
       }
     });
   }
-
-  // Automatic resize and orientation listening specifically for Hero
-  window.addEventListener('resize', () => {
-    if (!played) {
-      refreshRig();
-    }
-  }, { passive: true });
-  window.addEventListener('orientationchange', () => {
-    if (!played) {
-      setTimeout(refreshRig, 150);
-    }
-  }, { passive: true });
 }
