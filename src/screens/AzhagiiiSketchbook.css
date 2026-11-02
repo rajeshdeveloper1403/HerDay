@@ -430,6 +430,54 @@ body.az-book-open .replay{
   }
   .az-sketch__close{ top:8px; padding:7px 12px; font-size:11px; }
 }
+/* Mobile single-leaf page flip — stable book turn without nested strips */
+.sb-leaf{
+  position:absolute;
+  top:0;
+  height:100%;
+  width:50%;
+  z-index:8;
+  transform-style:preserve-3d;
+  will-change:transform;
+  pointer-events:none;
+}
+.sb-leaf.next{
+  left:50%;
+  transform-origin:left center;
+}
+.sb-leaf.prev{
+  left:0;
+  transform-origin:right center;
+}
+.sb-leaf-face{
+  position:absolute;
+  inset:0;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  background-repeat:no-repeat;
+  background-color:var(--paper, #ece7dc);
+}
+.sb-leaf-face.back{
+  transform:rotateY(180deg);
+}
+.sb-leaf-shade{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(90deg, rgba(40,28,12,.28), rgba(40,28,12,0) 70%);
+  opacity:0;
+}
+.sb-leaf.prev .sb-leaf-shade{
+  background:linear-gradient(270deg, rgba(40,28,12,.28), rgba(40,28,12,0) 70%);
+}
+
+html.az-book-scroll-lock,
+body.az-book-scroll-lock{
+  overflow:hidden !important;
+  overscroll-behavior:none;
+  touch-action:none;
+}
+
 @media (pointer:coarse){
   .sb-wrap.intro .sb-full img,
   .sb-wrap.intro .sb-half-img,
@@ -437,20 +485,20 @@ body.az-book-open .replay{
   .sb-wrap.intro.b2 .sb-full img,
   .sb-wrap.intro.b2 .sb-half-img,
   .sb-wrap.intro.b2 .face{ filter:none; }
-  /* Mobile: simpler shadows (blur filters caused idle shimmer) */
   .sb-cast.ambient,
   .sb-cast.contact,
-  .sb-cast.hair{ filter:none; opacity:.18; }
-  /* Keep 3D curl; lock idle tilt via fixed transform */
-  .sb-tilt{
+  .sb-cast.hair{ filter:none; opacity:.16; }
+  #azSketch.is-mobile .sb-tilt{
     transform-style:preserve-3d;
-    transform:rotateX(0deg) rotateY(0deg) scale(1);
+    transform:none;
   }
-  .curl, .strip, .face{
-    -webkit-backface-visibility:hidden;
-    backface-visibility:hidden;
+  #azSketch.is-mobile .sb-3d{
+    perspective:1600px;
   }
-  .sb-book{ contain:layout style; }
+  #azSketch.is-mobile .sb-book{
+    transform-style:preserve-3d;
+    contain:layout style;
+  }
   .sb-stage{ touch-action:none; -webkit-user-select:none; user-select:none; }
   .sb-zone{ touch-action:none; }
 }

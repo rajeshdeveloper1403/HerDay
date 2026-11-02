@@ -1,4 +1,4 @@
-/* Opened sketchbook: nested-strip page curl, her plates only. */
+/* Opened sketchbook: nested-strip curl on desktop; stable leaf-flip on mobile. */
 import './AzhagiiiSketchbook.css';
 
 const PHOTOS = [
@@ -31,9 +31,9 @@ const SPAN = 0.449;
 const BETA = 0.6;
 const TILT_X = 4.5;
 const TILT_Y = 7;
-const DRAG_ARM = 16;
+const DRAG_ARM = 18;
 const TAP_MAX = 12;
-const SETTLE_MS = 320;
+const SETTLE_MS = 360;
 
 let overlay, wrap, stage, sb3d, book, leftBtn, rightBtn;
 let idx = 0;
@@ -56,7 +56,8 @@ let settleUntil = 0;
 let resizeTimer = null;
 let activePointer = null;
 let turning = false;
-let introBusy = false; // prevents double-step / re-entry glitches
+let introBusy = false;
+let leafEl = null; // mobile flip leaf
 
 const view = { rx: 0, ry: 0, z: 1, trx: 0, try_: 0, tz: 1 };
 let viewActive = false;
@@ -75,10 +76,13 @@ function isCoarse() {
   return window.matchMedia('(pointer: coarse)').matches;
 }
 
+/** Mobile uses a single leaf flip — nested strips glitch on phones. */
+function useLeafFlip() {
+  return isCoarse();
+}
+
 function stripCount() {
-  // Intro uses fewer strips on phones for stable scroll; normal turns stay rich
-  if (introOn && isCoarse()) return 9;
-  return isCoarse() ? 14 : 18;
+  return 18;
 }
 
 function useBlur() {
@@ -138,8 +142,10 @@ function halfEl(pos, i) {
   return d;
 }
 
+/* ---------- desktop nested-strip curl ---------- */
 function buildCurl(dir, from, to) {
   strips = [];
+  leafEl = null;
   const n = stripCount();
   const c = el('div', 'curl ' + dir);
   c.style.setProperty('--n', n);
@@ -174,7 +180,7 @@ function buildCurl(dir, from, to) {
   return c;
 }
 
-function applyTurn(t) {
+function applyStripTurn(t) {
   if (!sb3d) return;
   const th = Math.PI * t;
   const beta = BETA * Math.sin(Math.PI * t);
@@ -195,6 +201,53 @@ function applyTurn(t) {
   }
 }
 
+/* ---------- mobile single-leaf flip (stable, still book-like) ---------- */
+function buildLeaf(dir, from, to) {
+  strips = [];
+  const leaf = el('div', 'sb-leaf ' + dir);
+  const front = el('div', 'sb-leaf-face front');
+  const back = el('div', 'sb-leaf-face back');
+  const dress = (e, url, px) => {
+    e.style.backgroundImage = 'url("' + url + '")';
+    e.style.backgroundPosition = px + ' center';
+    e.style.backgroundSize = '200% auto';
+  };
+  // next: flip right half — front shows right of FROM, back shows left of TO
+  // prev: flip left half — front shows left of FROM, back shows right of TO
+  if (dir === 'next') {
+    dress(front, faceUrl(from), '100%');
+    dress(back, faceUrl(to), '0%');
+  } else {
+    dress(front, faceUrl(from), '0%');
+    dress(back, faceUrl(to), '100%');
+  }
+  front.appendChild(el('div', 'sb-leaf-shade'));
+  back.appendChild(el('div', 'sb-leaf-shade'));
+  leaf.appendChild(front);
+  leaf.appendChild(back);
+  leafEl = leaf;
+  return leaf;
+}
+
+function applyLeafTurn(t) {
+  if (!leafEl || !sb3d) return;
+  const deg = (t * 180).toFixed(2);
+  // next flips from 0 → -180; prev flips from 0 → +180
+  const dir = turn && turn.dir === 'prev' ? 1 : -1;
+  leafEl.style.transform = 'rotateY(' + (dir * deg) + 'deg)';
+  const shade = Math.sin(Math.PI * t);
+  sb3d.style.setProperty('--shade', shade.toFixed(3));
+  const sh = leafEl.querySelectorAll('.sb-leaf-shade');
+  sh.forEach((n) => {
+    n.style.opacity = (shade * 0.35).toFixed(3);
+  });
+}
+
+function applyTurn(t) {
+  if (useLeafFlip()) applyLeafTurn(t);
+  else applyStripTurn(t);
+}
+
 function layout() {
   if (!sb3d || !book) return;
   const w = book.clientWidth;
@@ -203,6 +256,8 @@ function layout() {
 
 function paint() {
   if (!book) return;
+  leafEl = null;
+  strips = [];
   book.textContent = '';
   if (!turn) {
     const f = el('div', 'sb-full');
@@ -213,7 +268,19 @@ function paint() {
     im.decoding = 'async';
     f.appendChild(im);
     book.appendChild(f);
-    sb3d.style.setProperty('--shade', '0');
+    if (sb3d) sb3d.style.setProperty('--shade', '0');
+  } else if (useLeafFlip()) {
+    const next = turn.dir === 'next';
+    if (next) {
+      book.appendChild(halfEl('left', turn.from));
+      book.appendChild(halfEl('right', turn.to));
+      book.appendChild(buildLeaf('next', turn.from, turn.to));
+    } else {
+      book.appendChild(halfEl('left', turn.to));
+      book.appendChild(halfEl('right', turn.from));
+      book.appendChild(buildLeaf('prev', turn.from, turn.to));
+    }
+    applyTurn(turn.t);
   } else {
     const next = turn.dir === 'next';
     book.appendChild(halfEl('left', next ? turn.from : turn.to));
@@ -245,7 +312,7 @@ function applyView() {
 }
 
 function viewSpring() {
-  if (isCoarse()) {
+  if (useLeafFlip()) {
     if (view.rx || view.ry || view.z !== 1) {
       view.rx = view.trx = 0;
       view.ry = view.try_ = 0;
@@ -270,7 +337,7 @@ function viewSpring() {
 }
 
 function setView(rx, ry, z) {
-  if (isCoarse()) return;
+  if (useLeafFlip()) return;
   view.trx = Math.max(-TILT_X, Math.min(TILT_X, rx));
   view.try_ = Math.max(-TILT_Y, Math.min(TILT_Y, ry));
   view.tz = Math.max(0.9, Math.min(1.15, z));
@@ -279,7 +346,7 @@ function setView(rx, ry, z) {
 }
 
 function tiltTo(cx, cy) {
-  if (drag || !book || isCoarse() || introOn) return;
+  if (drag || !book || useLeafFlip() || introOn) return;
   const r = book.getBoundingClientRect();
   if (!r.width) return;
   const nx = Math.max(-1, Math.min(1, (cx - (r.left + r.width / 2)) / (r.width * 0.62)));
@@ -297,7 +364,6 @@ function tick(now) {
     if (s.kind === 'tween') {
       s.e += dt;
       const k = Math.min(1, s.e / Math.max(0.001, s.dur));
-      // ease-out cubic — smoother page feel than linear on phones
       const e = 1 - (1 - k) * (1 - k) * (1 - k);
       turn.t = s.from + (s.target - s.from) * e;
       applyTurn(turn.t);
@@ -335,7 +401,7 @@ function endIntro(reset) {
   riffleAt = 0;
   wrap?.classList.remove('intro', 'b2');
   if (reset) idx = 0;
-  settleUntil = performance.now() + (isCoarse() ? SETTLE_MS + 120 : SETTLE_MS);
+  settleUntil = performance.now() + (useLeafFlip() ? SETTLE_MS + 80 : SETTLE_MS);
 }
 
 function riffleStep() {
@@ -345,7 +411,7 @@ function riffleStep() {
 
   const s = riffle[riffleAt];
   const lastStep = riffleAt === riffle.length - 1;
-  wrap?.classList.toggle('b2', !lastStep && s.bell > 0.55 && useBlur());
+  if (useBlur()) wrap?.classList.toggle('b2', !lastStep && s.bell > 0.55);
 
   if (lastStep) {
     wrap?.classList.remove('intro', 'b2');
@@ -369,10 +435,12 @@ function riffleStep() {
     turn = null;
     riffleAt += 1;
     if (riffleAt < riffle.length) {
-      // Yield a frame so mobile GPU can settle (prevents stutter/glitch)
       paint();
+      // Two rAFs on mobile = one full paint cycle before next flip
       requestAnimationFrame(() => {
-        if (introOn && open) riffleStep();
+        requestAnimationFrame(() => {
+          if (introOn && open) riffleStep();
+        });
       });
     } else {
       endIntro();
@@ -389,15 +457,13 @@ function startIntro() {
     return;
   }
   if (!riffle) {
-    // Same scroll sequence on mobile + laptop; mobile timings slightly gentler
     const steps = SKETCH_N + LAND;
-    const coarse = isCoarse();
+    const mobile = useLeafFlip();
     riffle = [];
     for (let r = 0; r < steps; r++) {
       const bell = Math.sin(Math.PI * (r / Math.max(1, steps - 1)));
-      const dur = coarse
-        ? 0.34 - 0.16 * bell
-        : 0.26 - 0.19 * bell;
+      // Mobile: slightly slower, smoother opening scroll
+      const dur = mobile ? 0.3 - 0.12 * bell : 0.26 - 0.19 * bell;
       riffle.push({ bell, dur });
     }
     riffleAt = 0;
@@ -448,15 +514,14 @@ function commit() {
     settleUntil = performance.now() + 120;
     return;
   }
-  // Same book curl feel everywhere — slightly snappier on phones
-  const stiff = isCoarse() ? 195 : 170;
-  const damp = isCoarse() ? 28 : 26;
+  const stiff = useLeafFlip() ? 200 : 170;
+  const damp = useLeafFlip() ? 28 : 26;
   animateTo(1, () => {
     idx = turn.to;
     turn = null;
     turning = false;
     paint();
-    settleUntil = performance.now() + (isCoarse() ? 140 : 80);
+    settleUntil = performance.now() + (useLeafFlip() ? 150 : 80);
   }, stiff, damp);
   kick();
 }
@@ -471,8 +536,8 @@ function cancel() {
     paint();
     return;
   }
-  const stiff = isCoarse() ? 180 : 150;
-  const damp = isCoarse() ? 26 : 24;
+  const stiff = useLeafFlip() ? 190 : 150;
+  const damp = useLeafFlip() ? 28 : 24;
   animateTo(0, () => {
     turn = null;
     turning = false;
@@ -483,8 +548,12 @@ function cancel() {
 
 function step(dir) {
   if (introOn) {
+    spring = null;
+    turn = null;
     endIntro(true);
+    idx = 0;
     paint();
+    return;
   }
   if (!canInteract()) return;
   if (turn) {
@@ -501,19 +570,22 @@ function bookRect() {
   return book.getBoundingClientRect();
 }
 
+function skipIntroToStart() {
+  spring = null;
+  turn = null;
+  endIntro(true);
+  idx = 0;
+  paint();
+}
+
 function onStageDown(e) {
   if (!open || e.button !== 0) return;
   if (e.target.closest('.az-sketch__close, .sb-arrow')) return;
   if (activePointer != null && e.pointerId !== activePointer) return;
   e.preventDefault();
 
-  // Tap during opening scroll = skip to first photo page (same as laptop)
   if (introOn) {
-    spring = null;
-    turn = null;
-    endIntro(true);
-    idx = 0;
-    paint();
+    skipIntroToStart();
     return;
   }
   if (!canInteract()) return;
@@ -550,7 +622,7 @@ function onStageMove(e) {
 
   if (!drag.armed) {
     if (drag.moved < DRAG_ARM) return;
-    if (Math.abs(dy) > Math.abs(dx) * 1.2) {
+    if (Math.abs(dy) > Math.abs(dx) * 1.15) {
       drag = null;
       activePointer = null;
       try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -594,7 +666,7 @@ function endDrag(e) {
     return;
   }
   if (!turn) return;
-  const go = turn.t > 0.38 || d.vel > 0.95;
+  const go = turn.t > 0.36 || d.vel > 0.9;
   if (go) commit();
   else cancel();
 }
@@ -603,11 +675,7 @@ function onKey(e) {
   if (!open) return;
   if (introOn && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Escape')) {
     e.preventDefault();
-    spring = null;
-    turn = null;
-    endIntro(true);
-    idx = 0;
-    paint();
+    skipIntroToStart();
     return;
   }
   if (!canInteract()) return;
@@ -622,13 +690,25 @@ function onKey(e) {
 
 function onResize() {
   if (!open) return;
+  // Ignore resize storms during intro/turn — biggest mobile glitch source
+  if (introOn || turning || drag) return;
   if (resizeTimer) clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     resizeTimer = null;
-    if (!open) return;
+    if (!open || introOn || turning) return;
     syncRotate();
     layout();
-  }, 140);
+  }, 180);
+}
+
+function lockScroll(on) {
+  if (on) {
+    document.documentElement.classList.add('az-book-scroll-lock');
+    document.body.classList.add('az-book-scroll-lock');
+  } else {
+    document.documentElement.classList.remove('az-book-scroll-lock');
+    document.body.classList.remove('az-book-scroll-lock');
+  }
 }
 
 function bind() {
@@ -645,27 +725,11 @@ function bind() {
   stage.addEventListener('selectstart', (e) => e.preventDefault());
   leftBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    if (introOn) {
-      spring = null;
-      turn = null;
-      endIntro(true);
-      idx = 0;
-      paint();
-      return;
-    }
-    if (canInteract()) step('prev');
+    step('prev');
   });
   rightBtn.addEventListener('click', (e) => {
     e.preventDefault();
-    if (introOn) {
-      spring = null;
-      turn = null;
-      endIntro(true);
-      idx = 0;
-      paint();
-      return;
-    }
-    if (canInteract()) step('next');
+    step('next');
   });
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', onResize);
@@ -714,6 +778,7 @@ export function openSketchbook() {
   activePointer = null;
   turning = false;
   introBusy = false;
+  leafEl = null;
   view.rx = view.trx = 0;
   view.ry = view.try_ = 0;
   view.z = view.tz = 1;
@@ -721,11 +786,13 @@ export function openSketchbook() {
   introQueued = false;
   overlay.classList.remove('is-leaving', 'need-rotate');
   overlay.classList.add('is-on');
+  if (useLeafFlip()) overlay.classList.add('is-mobile');
+  else overlay.classList.remove('is-mobile');
   overlay.setAttribute('aria-hidden', 'false');
   document.body.classList.add('az-book-open');
+  lockScroll(true);
   applyView();
 
-  // Opening scroll on BOTH mobile + laptop (same experience)
   const doIntro = !reduced;
   introOn = doIntro;
   if (introOn && useBlur()) wrap?.classList.add('intro');
@@ -739,7 +806,6 @@ export function openSketchbook() {
     requestAnimationFrame(() => {
       layout();
       if (phonePortrait()) {
-        // Wait for landscape — then play the same opening scroll
         introQueued = doIntro;
         overlay.classList.add('need-rotate');
         introOn = false;
@@ -747,7 +813,7 @@ export function openSketchbook() {
         paint();
         return;
       }
-      if (doIntro) setTimeout(startIntro, 50);
+      if (doIntro) setTimeout(startIntro, 60);
       else {
         endIntro(true);
         paint();
@@ -771,14 +837,16 @@ export function closeSketchbook() {
   turn = null;
   turning = false;
   introBusy = false;
+  leafEl = null;
   endIntro();
   if (resizeTimer) {
     clearTimeout(resizeTimer);
     resizeTimer = null;
   }
   document.body.classList.remove('az-book-open');
+  lockScroll(false);
   overlay.classList.add('is-leaving');
-  overlay.classList.remove('is-on', 'need-rotate');
+  overlay.classList.remove('is-on', 'need-rotate', 'is-mobile');
   overlay.setAttribute('aria-hidden', 'true');
   if (raf) {
     cancelAnimationFrame(raf);
