@@ -2,9 +2,16 @@
 import './AzhagiiiSketchbook.css';
 
 const PHOTOS = [
-  '/photos/az-book/p0.png?v=3',
-  '/photos/az-book/p1.png?v=3',
-  '/photos/az-book/p2.png?v=3',
+  '/photos/az-book/p0.png?v=15',
+  '/photos/az-book/p1.png?v=15',
+  '/photos/az-book/p2.png?v=15',
+  '/photos/az-book/p3.png?v=15',
+  '/photos/az-book/p4.png?v=15',
+  '/photos/az-book/p5.png?v=15',
+  '/photos/az-book/p6.png?v=15',
+  '/photos/az-book/p7.png?v=15',
+  '/photos/az-book/p8.png?v=15',
+  '/photos/az-book/p9.png?v=15',
 ];
 const SKETCHES = [
   '/photos/az-book/sketches/marina-bay-sands.png',
