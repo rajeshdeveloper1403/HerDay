@@ -4,6 +4,7 @@
 import gsap from 'gsap';
 import { $, reduceMotion, isRecord } from './core/utils.js';
 import { initAudioContext } from './core/audio.js';
+import { scene3D } from './core/Scene3D.js';
 
 // Screens
 import {
@@ -126,6 +127,12 @@ const modalOpeners = {
   openStars: () => openConstellationModal(),
   openLetter: () => openLetterModal(),
 };
+
+// 0. Initialize 3D Engine
+const webglEl = $('webglCanvas');
+if (webglEl) {
+  scene3D.init(webglEl);
+}
 
 // 1. Initialize Screen 1 with fire handler
 initScreen1({
