@@ -2,12 +2,9 @@
 import './AzhagiiiSketchbook.css';
 
 const PHOTOS = [
-  '/photos/az-book/p0.png?v=2',
-  '/photos/az-book/p1.png?v=2',
-  '/photos/az-book/p2.png?v=2',
-  '/photos/az-book/p3.png?v=2',
-  '/photos/az-book/p4.png?v=2',
-  '/photos/az-book/p5.png?v=2',
+  '/photos/az-book/p0.png?v=3',
+  '/photos/az-book/p1.png?v=3',
+  '/photos/az-book/p2.png?v=3',
 ];
 const SKETCHES = [
   '/photos/az-book/sketches/marina-bay-sands.png',
@@ -23,7 +20,6 @@ const SKETCHES = [
 const PHOTO_N = PHOTOS.length;
 const SKETCH_N = SKETCHES.length;
 const LAND = 6;
-const N = 18;
 const SPAN = 0.449;
 const BETA = 0.6;
 const TILT_X = 4.5;
@@ -45,6 +41,7 @@ let closeWait = null;
 let introOn = false;
 let riffle = null;
 let riffleAt = 0;
+let introQueued = false;
 
 const view = { rx: 0, ry: 0, z: 1, trx: 0, try_: 0, tz: 1 };
 let viewActive = false;
@@ -57,6 +54,28 @@ function el(t, c) {
 
 function wrapN() {
   return introOn ? SKETCH_N : PHOTO_N;
+}
+
+function stripCount() {
+  return window.matchMedia('(pointer: coarse)').matches ? 12 : 18;
+}
+
+function useBlur() {
+  return !window.matchMedia('(pointer: coarse), (prefers-reduced-motion: reduce)').matches;
+}
+
+function phonePortrait() {
+  return window.matchMedia('(orientation: portrait) and (max-width: 900px)').matches;
+}
+
+function syncRotate() {
+  if (!overlay) return;
+  const need = open && phonePortrait();
+  overlay.classList.toggle('need-rotate', need);
+  if (!need && introQueued && open && !reduced) {
+    introQueued = false;
+    startIntro();
+  }
 }
 
 function sketchUrl(i) {
@@ -95,15 +114,16 @@ function halfEl(pos, i) {
 
 function buildCurl(dir, from, to) {
   strips = [];
+  const n = stripCount();
   const c = el('div', 'curl ' + dir);
-  c.style.setProperty('--n', N);
+  c.style.setProperty('--n', n);
   c.style.setProperty('--span', SPAN);
   let host = c;
-  for (let i = 0; i < N; i++) {
+  for (let i = 0; i < n; i++) {
     const s = el('div', 'strip');
     s.style.setProperty('--i', i);
     const gut = 'calc(var(--bw) * 0.5)';
-    const sw = 'calc(var(--bw) * ' + SPAN + ' / ' + N + ')';
+    const sw = 'calc(var(--bw) * ' + SPAN + ' / ' + n + ')';
     const A = 'calc(-1 * (' + gut + ' + ' + i + ' * ' + sw + '))';
     const B = 'calc(' + (i + 1) + ' * ' + sw + ' - ' + gut + ')';
     const f = el('div', 'face front');
@@ -120,7 +140,7 @@ function buildCurl(dir, from, to) {
     b.appendChild(el('div', 'gl'));
     s.appendChild(f);
     s.appendChild(b);
-    if (i === N - 1) s.classList.add('edge');
+    if (i === n - 1) s.classList.add('edge');
     host.appendChild(s);
     host = s;
     strips.push(s);
@@ -132,8 +152,9 @@ function applyTurn(t) {
   const th = Math.PI * t;
   const beta = BETA * Math.sin(Math.PI * t);
   const D = 180 / Math.PI;
+  const n = strips.length || stripCount();
   const tt = th + beta;
-  const td = (2 * beta) / N;
+  const td = (2 * beta) / n;
   sb3d.style.setProperty('--tt', (tt * D).toFixed(2) + 'deg');
   sb3d.style.setProperty('--td', (td * D).toFixed(3) + 'deg');
   sb3d.style.setProperty('--shade', Math.sin(Math.PI * t).toFixed(3));
@@ -315,7 +336,7 @@ function startIntro() {
     }
     riffleAt = 0;
     introOn = true;
-    wrap?.classList.add('intro');
+    if (useBlur()) wrap?.classList.add('intro');
   }
   riffleStep();
 }
@@ -447,7 +468,9 @@ function onKey(e) {
 }
 
 function onResize() {
-  if (open) layout();
+  if (!open) return;
+  syncRotate();
+  layout();
 }
 
 function bind() {
@@ -463,6 +486,7 @@ function bind() {
   rightBtn.addEventListener('click', () => step('next'));
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
 }
 
 function preload() {
@@ -508,17 +532,24 @@ export function openSketchbook() {
   view.ry = view.try_ = 0;
   view.z = view.tz = 1;
   open = true;
-  overlay.classList.remove('is-leaving');
+  introQueued = false;
+  overlay.classList.remove('is-leaving', 'need-rotate');
   overlay.classList.add('is-on');
   overlay.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('az-book-open');
   applyView();
   introOn = !reduced;
-  if (introOn) wrap?.classList.add('intro');
+  if (introOn && useBlur()) wrap?.classList.add('intro');
   requestAnimationFrame(() => {
     layout();
     paint();
     requestAnimationFrame(() => {
       layout();
+      if (phonePortrait()) {
+        introQueued = !reduced;
+        overlay.classList.add('need-rotate');
+        return;
+      }
       setTimeout(startIntro, 40);
     });
   });
@@ -532,12 +563,14 @@ export function closeSketchbook() {
   }
   closing = true;
   open = false;
+  introQueued = false;
   drag = null;
   spring = null;
   turn = null;
   endIntro();
+  document.body.classList.remove('az-book-open');
   overlay.classList.add('is-leaving');
-  overlay.classList.remove('is-on');
+  overlay.classList.remove('is-on', 'need-rotate');
   overlay.setAttribute('aria-hidden', 'true');
   if (raf) {
     cancelAnimationFrame(raf);

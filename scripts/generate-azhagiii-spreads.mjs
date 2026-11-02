@@ -166,13 +166,6 @@ async function makeSpread(templateFile, leftDraw, rightDraw, outName) {
 mkdirSync(OUT, { recursive: true });
 
 const bookImg = await loadImage(join(PHOTOS, 'BookImage.png'));
-const first = await loadImage(join(PHOTOS, 'FirstImage.png'));
-const second = await loadImage(join(PHOTOS, 'SecondImage.jpeg'));
-const third = await loadImage(join(PHOTOS, 'ThirdImage.png'));
-const cover = await loadImage(join(SRC, 'cover-art.jpg'));
-const slide1 = await loadImage(join(PHOTOS, 'Slide1.jpg'));
-const slide2 = await loadImage(join(PHOTOS, 'Slide2.jpg'));
-const slide3 = await loadImage(join(PHOTOS, 'Slide3.jpg'));
 
 await makeSpread(
   'marina-bay-sands.png',
@@ -191,34 +184,6 @@ await makeSpread(
 
 await makeSpread(
   'gardens-by-the-bay.png',
-  (ctx, box) => polaroid(ctx, first, box, -0.03, 7, 0),
-  (ctx, box) => polaroid(ctx, second, box, 0.035, 13, -0.1),
-  'p1.png'
-);
-
-await makeSpread(
-  'merlion.png',
-  (ctx, box) => polaroid(ctx, third, box, 0.025, 17, -0.12),
-  (ctx, box) => polaroid(ctx, cover, box, -0.03, 21, -0.06),
-  'p2.png'
-);
-
-await makeSpread(
-  'buddha-tooth.png',
-  (ctx, box) => polaroid(ctx, slide1, box, -0.02, 29, 0),
-  (ctx, box) => polaroid(ctx, slide2, box, 0.03, 31, 0),
-  'p3.png'
-);
-
-await makeSpread(
-  'joo-chiat.png',
-  (ctx, box) => polaroid(ctx, slide3, box, 0.02, 37, 0),
-  (ctx, box) => polaroid(ctx, bookImg, box, -0.035, 41, -0.08),
-  'p4.png'
-);
-
-await makeSpread(
-  'lau-pa-sat.png',
   (ctx, box) => {
     writeLines(ctx, [
       { text: 'Keep this smile', font: 'italic 32px Georgia', gap: 44, alpha: 0.84 },
@@ -227,8 +192,21 @@ await makeSpread(
       { text: '— with love', font: 'italic 22px Georgia', gap: 28, alpha: 0.6 },
     ], box);
   },
-  (ctx, box) => polaroid(ctx, cover, box, 0.02, 47, -0.04),
-  'p5.png'
+  () => {},
+  'p1.png'
+);
+
+await makeSpread(
+  'merlion.png',
+  (ctx, box) => {
+    writeLines(ctx, [
+      { text: 'A page saved', font: 'italic 30px Georgia', gap: 42, alpha: 0.8 },
+      { text: 'for the next', font: 'italic 28px Georgia', gap: 40, alpha: 0.74 },
+      { text: 'little story.', font: 'italic 28px Georgia', gap: 52, alpha: 0.74 },
+    ], box);
+  },
+  (ctx, box) => polaroid(ctx, bookImg, box, 0.03, 11, -0.08),
+  'p2.png'
 );
 
 console.log('done');
