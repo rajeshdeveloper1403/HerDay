@@ -314,12 +314,14 @@ export function createFireworkBurst(cx, cy, type = 'willow') {
       A: [[0,1,1,0],[1,0,0,1],[1,0,0,1],[1,1,1,1],[1,0,0,1],[1,0,0,1],[1,0,0,1]],
       N: [[1,0,0,1],[1,1,0,1],[1,0,1,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1]],
       U: [[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[0,1,1,0]],
+      D: [[1,1,1,0],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,1,1,0]],
+      H: [[1,0,0,1],[1,0,0,1],[1,0,0,1],[1,1,1,1],[1,0,0,1],[1,0,0,1],[1,0,0,1]],
     };
 
-    const word = 'ANU';
-    const letterWidth = isMobile ? 30 : 44;
-    const letterHeight = isMobile ? 42 : 60;
-    const letterSpacing = isMobile ? 12 : 18;
+    const word = 'NANDHANA';
+    const letterWidth = isMobile ? 18 : 28;
+    const letterHeight = isMobile ? 30 : 44;
+    const letterSpacing = isMobile ? 5 : 8;
     const totalWordWidth = word.length * letterWidth + (word.length - 1) * letterSpacing;
     const startX = cx - totalWordWidth / 2;
     const startY = cy - letterHeight / 2;

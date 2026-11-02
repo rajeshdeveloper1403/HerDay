@@ -1127,7 +1127,8 @@ body{
 .floral-char{
   font-family:"Fraunces", "Cormorant Garamond", Georgia, serif;
   font-weight:900;
-  font-size:clamp(30px, 3.6vw, 50px);
+  font-size:clamp(24px, 3.2vw, 48px);
+  transform:translateZ(0);
   line-height:1.25;
   letter-spacing:0.02em;
   padding:0.06em 0.04em 0.30em 0.04em; /* Generous bottom padding so descenders ('y') never get clipped by background-clip */
@@ -1217,7 +1218,7 @@ body{
     margin-top:clamp(6px, 1.4vh, 14px);
   }
   .floral-char{
-    font-size:clamp(26px, 7.8vw, 40px); /* Perfectly balanced for 7 letters Anusiya on mobile */
+    font-size:clamp(20px, 6.0vw, 32px); /* Balanced for 8 letters Nandhana on mobile */
   }
   .s2-cake-wrap{
     width:clamp(210px, 56vw, 290px);
@@ -1258,6 +1259,9 @@ body{
   }
   .hl__word{
     font-size:clamp(28px, 9vw, 42px);
+  }
+  .floral-char{
+    font-size:clamp(17px, 5.2vw, 24px);
   }
   .s2-cake-wrap{
     width:clamp(150px, 46vw, 190px);

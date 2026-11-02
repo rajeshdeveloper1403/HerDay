@@ -354,6 +354,24 @@ function burstCracker(cx, cy, type = 'willow') {
         [0,1,1,0],
         [1,1,1,1]
       ],
+      D: [
+        [1,1,1,0],
+        [1,0,0,1],
+        [1,0,0,1],
+        [1,0,0,1],
+        [1,0,0,1],
+        [1,0,0,1],
+        [1,1,1,0]
+      ],
+      H: [
+        [1,0,0,1],
+        [1,0,0,1],
+        [1,0,0,1],
+        [1,1,1,1],
+        [1,0,0,1],
+        [1,0,0,1],
+        [1,0,0,1]
+      ],
       Y: [
         [1,0,0,1],
         [1,0,0,1],
@@ -365,10 +383,10 @@ function burstCracker(cx, cy, type = 'willow') {
       ]
     };
 
-    const word = 'ANUSIYA';
-    const letterWidth = isMobile ? 18 : 25;
-    const letterHeight = isMobile ? 32 : 44;
-    const letterSpacing = isMobile ? 5 : 8;
+    const word = 'NANDHANA';
+    const letterWidth = isMobile ? 14 : 22;
+    const letterHeight = isMobile ? 26 : 40;
+    const letterSpacing = isMobile ? 4 : 7;
     const totalW = word.length * letterWidth + (word.length - 1) * letterSpacing;
     const startX = cx - totalW / 2;
     const startY = cy - letterHeight / 2;
@@ -481,7 +499,7 @@ function animateFireworks() {
     r.x += r.vx;
     r.y += r.vy;
 
-    fwCtx.save();
+
     fwCtx.fillStyle = '#ffe082';
     fwCtx.globalAlpha = 0.4;
     fwCtx.beginPath();
@@ -509,7 +527,7 @@ function animateFireworks() {
         flicker: false,
       });
     }
-    fwCtx.restore();
+
 
     if (r.step >= r.maxSteps) {
       burstCracker(r.targetX, r.targetY, r.type);
@@ -536,7 +554,7 @@ function animateFireworks() {
         continue;
       }
 
-      fwCtx.save();
+
       const flicker = (Math.sin(p.life * p.flickerRate) * 0.35 + 0.65) * p.alpha;
       fwCtx.fillStyle = p.color;
       fwCtx.globalAlpha = Math.max(0, flicker * 0.38);
@@ -549,7 +567,7 @@ function animateFireworks() {
       fwCtx.beginPath();
       fwCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       fwCtx.fill();
-      fwCtx.restore();
+
       continue;
     }
 
@@ -565,7 +583,7 @@ function animateFireworks() {
       continue;
     }
 
-    fwCtx.save();
+
     const flicker = p.flicker ? Math.random() * 0.4 + 0.6 : 1;
     const curA = Math.max(0, p.alpha * flicker);
 
@@ -581,7 +599,7 @@ function animateFireworks() {
     fwCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     fwCtx.fill();
 
-    fwCtx.restore();
+
   }
 
   if (fwRockets.length > 0 || fwParticles.length > 0) {
@@ -779,12 +797,12 @@ function morphCrackerToFlowers(isMobile) {
     if (centerChars.length > 0) {
       gsap.fromTo(
         centerChars,
-        { opacity: 0, scale: 0.35, y: 16, filter: 'blur(8px)' },
+        { opacity: 0, scale: 0.35, y: 16, force3D: true },
         {
           opacity: 1,
           scale: 1,
           y: 0,
-          filter: 'blur(0px)',
+          force3D: true,
           duration: 0.8,
           stagger: 0.12,
           ease: 'back.out(1.8)',
@@ -828,12 +846,12 @@ function morphCrackerToFlowers(isMobile) {
       if (chars.length > 0) {
         gsap.fromTo(
           chars,
-          { opacity: 0, scale: 0.35, y: 16, filter: 'blur(8px)' },
+          { opacity: 0, scale: 0.35, y: 16, force3D: true },
           {
             opacity: 1,
             scale: 1,
             y: 0,
-            filter: 'blur(0px)',
+            force3D: true,
             duration: 0.8,
             stagger: 0.1,
             ease: 'back.out(1.8)',
