@@ -31,9 +31,9 @@ const SPAN = 0.449;
 const BETA = 0.6;
 const TILT_X = 4.5;
 const TILT_Y = 7;
-const DRAG_ARM = 14; // px before a curl starts (kills mobile jitter)
-const TAP_MAX = 10; // px — treat as tap
-const SETTLE_MS = 280; // ignore input briefly after open / intro
+const DRAG_ARM = 16;
+const TAP_MAX = 12;
+const SETTLE_MS = 320;
 
 let overlay, wrap, stage, sb3d, book, leftBtn, rightBtn;
 let idx = 0;
@@ -55,7 +55,8 @@ let introQueued = false;
 let settleUntil = 0;
 let resizeTimer = null;
 let activePointer = null;
-let turning = false; // true while a commit/cancel spring is running
+let turning = false;
+let introBusy = false; // prevents double-step / re-entry glitches
 
 const view = { rx: 0, ry: 0, z: 1, trx: 0, try_: 0, tz: 1 };
 let viewActive = false;
@@ -75,8 +76,9 @@ function isCoarse() {
 }
 
 function stripCount() {
-  // Enough strips for a real curl on phones, without desktop weight
-  return isCoarse() ? 12 : 18;
+  // Intro uses fewer strips on phones for stable scroll; normal turns stay rich
+  if (introOn && isCoarse()) return 9;
+  return isCoarse() ? 14 : 18;
 }
 
 function useBlur() {
@@ -88,7 +90,7 @@ function phonePortrait() {
 }
 
 function canInteract() {
-  return open && !closing && !introOn && !turning && performance.now() >= settleUntil;
+  return open && !closing && !introOn && !turning && !introBusy && performance.now() >= settleUntil;
 }
 
 function syncRotate() {
@@ -195,7 +197,8 @@ function applyTurn(t) {
 
 function layout() {
   if (!sb3d || !book) return;
-  sb3d.style.setProperty('--bw', book.clientWidth + 'px');
+  const w = book.clientWidth;
+  if (w > 2) sb3d.style.setProperty('--bw', w + 'px');
 }
 
 function paint() {
@@ -243,7 +246,6 @@ function applyView() {
 
 function viewSpring() {
   if (isCoarse()) {
-    // Mobile: no continuous tilt spring — kills idle GPU jitter
     if (view.rx || view.ry || view.z !== 1) {
       view.rx = view.trx = 0;
       view.ry = view.try_ = 0;
@@ -277,7 +279,7 @@ function setView(rx, ry, z) {
 }
 
 function tiltTo(cx, cy) {
-  if (drag || !book || isCoarse()) return;
+  if (drag || !book || isCoarse() || introOn) return;
   const r = book.getBoundingClientRect();
   if (!r.width) return;
   const nx = Math.max(-1, Math.min(1, (cx - (r.left + r.width / 2)) / (r.width * 0.62)));
@@ -287,14 +289,17 @@ function tiltTo(cx, cy) {
 
 function tick(now) {
   raf = null;
+  if (!open) return;
   const dt = Math.min(0.032, (now - last) / 1000 || 0.016);
   last = now;
   if (spring && turn) {
     const s = spring;
     if (s.kind === 'tween') {
       s.e += dt;
-      const k = Math.min(1, s.e / s.dur);
-      turn.t = s.from + (s.target - s.from) * k;
+      const k = Math.min(1, s.e / Math.max(0.001, s.dur));
+      // ease-out cubic — smoother page feel than linear on phones
+      const e = 1 - (1 - k) * (1 - k) * (1 - k);
+      turn.t = s.from + (s.target - s.from) * e;
       applyTurn(turn.t);
       if (k >= 1) {
         spring = null;
@@ -315,7 +320,6 @@ function tick(now) {
     }
   }
   viewSpring();
-  // Do NOT keep RAF alive just because introOn — that caused idle mobile glitch
   if ((spring || viewActive) && raf === null) raf = requestAnimationFrame(tick);
 }
 
@@ -326,18 +330,23 @@ function tweenTo(target, dur, onDone) {
 
 function endIntro(reset) {
   introOn = false;
+  introBusy = false;
   riffle = null;
   riffleAt = 0;
   wrap?.classList.remove('intro', 'b2');
   if (reset) idx = 0;
-  settleUntil = performance.now() + SETTLE_MS;
+  settleUntil = performance.now() + (isCoarse() ? SETTLE_MS + 120 : SETTLE_MS);
 }
 
 function riffleStep() {
-  if (!introOn || !riffle) return;
+  if (!introOn || !riffle || !open) return;
+  if (introBusy) return;
+  introBusy = true;
+
   const s = riffle[riffleAt];
   const lastStep = riffleAt === riffle.length - 1;
-  wrap?.classList.toggle('b2', !lastStep && s.bell > 0.55);
+  wrap?.classList.toggle('b2', !lastStep && s.bell > 0.55 && useBlur());
+
   if (lastStep) {
     wrap?.classList.remove('intro', 'b2');
     startTurn('next', 0, {
@@ -348,18 +357,23 @@ function riffleStep() {
   } else {
     startTurn('next', 0);
   }
+
   tweenTo(1, s.dur, () => {
-    if (!introOn) {
+    introBusy = false;
+    if (!introOn || !open) {
       turn = null;
       paint();
       return;
     }
-    idx = turn.to;
+    idx = turn ? turn.to : idx;
     turn = null;
     riffleAt += 1;
     if (riffleAt < riffle.length) {
+      // Yield a frame so mobile GPU can settle (prevents stutter/glitch)
       paint();
-      riffleStep();
+      requestAnimationFrame(() => {
+        if (introOn && open) riffleStep();
+      });
     } else {
       endIntro();
       idx = 0;
@@ -369,22 +383,28 @@ function riffleStep() {
 }
 
 function startIntro() {
-  // Mobile: skip heavy auto-riffle — it looked like pages flipping by themselves
-  if (reduced || isCoarse()) {
+  if (reduced) {
     endIntro(true);
     paint();
     return;
   }
   if (!riffle) {
+    // Same scroll sequence on mobile + laptop; mobile timings slightly gentler
     const steps = SKETCH_N + LAND;
+    const coarse = isCoarse();
     riffle = [];
     for (let r = 0; r < steps; r++) {
       const bell = Math.sin(Math.PI * (r / Math.max(1, steps - 1)));
-      riffle.push({ bell, dur: 0.26 - 0.19 * bell });
+      const dur = coarse
+        ? 0.34 - 0.16 * bell
+        : 0.26 - 0.19 * bell;
+      riffle.push({ bell, dur });
     }
     riffleAt = 0;
     introOn = true;
+    introBusy = false;
     if (useBlur()) wrap?.classList.add('intro');
+    else wrap?.classList.remove('intro', 'b2');
   }
   riffleStep();
 }
@@ -428,15 +448,15 @@ function commit() {
     settleUntil = performance.now() + 120;
     return;
   }
-  // Real page-curl on mobile + desktop (mobile spring a bit snappier)
-  const stiff = isCoarse() ? 220 : 170;
-  const damp = isCoarse() ? 30 : 26;
+  // Same book curl feel everywhere — slightly snappier on phones
+  const stiff = isCoarse() ? 195 : 170;
+  const damp = isCoarse() ? 28 : 26;
   animateTo(1, () => {
     idx = turn.to;
     turn = null;
     turning = false;
     paint();
-    settleUntil = performance.now() + (isCoarse() ? 100 : 80);
+    settleUntil = performance.now() + (isCoarse() ? 140 : 80);
   }, stiff, damp);
   kick();
 }
@@ -451,8 +471,8 @@ function cancel() {
     paint();
     return;
   }
-  const stiff = isCoarse() ? 200 : 150;
-  const damp = isCoarse() ? 28 : 24;
+  const stiff = isCoarse() ? 180 : 150;
+  const damp = isCoarse() ? 26 : 24;
   animateTo(0, () => {
     turn = null;
     turning = false;
@@ -462,8 +482,11 @@ function cancel() {
 }
 
 function step(dir) {
-  if (!canInteract() && !introOn) return;
-  if (introOn) endIntro(true);
+  if (introOn) {
+    endIntro(true);
+    paint();
+  }
+  if (!canInteract()) return;
   if (turn) {
     idx = turn.to;
     turn = null;
@@ -481,12 +504,15 @@ function bookRect() {
 function onStageDown(e) {
   if (!open || e.button !== 0) return;
   if (e.target.closest('.az-sketch__close, .sb-arrow')) return;
-  // Only track one pointer — ignores palm / multi-touch ghosts
   if (activePointer != null && e.pointerId !== activePointer) return;
   e.preventDefault();
 
+  // Tap during opening scroll = skip to first photo page (same as laptop)
   if (introOn) {
+    spring = null;
+    turn = null;
     endIntro(true);
+    idx = 0;
     paint();
     return;
   }
@@ -500,7 +526,6 @@ function onStageDown(e) {
 
   const r = bookRect();
   const dir = (e.clientX - r.left) / r.width > 0.5 ? 'next' : 'prev';
-  // Do NOT build curl yet — wait for intentional drag (stops mobile micro-jitter glitch)
   drag = {
     dir,
     x0: e.clientX,
@@ -517,17 +542,15 @@ function onStageMove(e) {
   if (!open) return;
   if (activePointer != null && e.pointerId !== activePointer) return;
   if (e.pointerType === 'mouse') tiltTo(e.clientX, e.clientY);
-  if (!drag) return;
+  if (!drag || introOn) return;
 
   const dx = e.clientX - drag.x0;
   const dy = e.clientY - drag.y0;
   drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
 
-  // Arm curl only after clear horizontal intent
   if (!drag.armed) {
     if (drag.moved < DRAG_ARM) return;
-    // Prefer horizontal page-turn; ignore mostly-vertical scroll jitter
-    if (Math.abs(dy) > Math.abs(dx) * 1.25) {
+    if (Math.abs(dy) > Math.abs(dx) * 1.2) {
       drag = null;
       activePointer = null;
       try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -561,8 +584,9 @@ function endDrag(e) {
     if (e) stage.releasePointerCapture(e.pointerId);
   } catch (_) {}
 
+  if (introOn) return;
+
   if (!d.armed) {
-    // Clean tap → turn page once
     if (d.moved <= TAP_MAX && canInteract()) {
       startTurn(d.dir, 0);
       commit();
@@ -570,13 +594,23 @@ function endDrag(e) {
     return;
   }
   if (!turn) return;
-  const go = turn.t > 0.42 || d.vel > 1.1;
+  const go = turn.t > 0.38 || d.vel > 0.95;
   if (go) commit();
   else cancel();
 }
 
 function onKey(e) {
-  if (!open || !canInteract()) return;
+  if (!open) return;
+  if (introOn && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Escape')) {
+    e.preventDefault();
+    spring = null;
+    turn = null;
+    endIntro(true);
+    idx = 0;
+    paint();
+    return;
+  }
+  if (!canInteract()) return;
   if (e.key === 'ArrowLeft') {
     e.preventDefault();
     step('prev');
@@ -588,14 +622,13 @@ function onKey(e) {
 
 function onResize() {
   if (!open) return;
-  // Debounce — mobile URL-bar show/hide fires many resizes
   if (resizeTimer) clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     resizeTimer = null;
     if (!open) return;
     syncRotate();
     layout();
-  }, 120);
+  }, 140);
 }
 
 function bind() {
@@ -612,10 +645,26 @@ function bind() {
   stage.addEventListener('selectstart', (e) => e.preventDefault());
   leftBtn.addEventListener('click', (e) => {
     e.preventDefault();
+    if (introOn) {
+      spring = null;
+      turn = null;
+      endIntro(true);
+      idx = 0;
+      paint();
+      return;
+    }
     if (canInteract()) step('prev');
   });
   rightBtn.addEventListener('click', (e) => {
     e.preventDefault();
+    if (introOn) {
+      spring = null;
+      turn = null;
+      endIntro(true);
+      idx = 0;
+      paint();
+      return;
+    }
     if (canInteract()) step('next');
   });
   window.addEventListener('keydown', onKey);
@@ -664,6 +713,7 @@ export function openSketchbook() {
   drag = null;
   activePointer = null;
   turning = false;
+  introBusy = false;
   view.rx = view.trx = 0;
   view.ry = view.try_ = 0;
   view.z = view.tz = 1;
@@ -675,8 +725,8 @@ export function openSketchbook() {
   document.body.classList.add('az-book-open');
   applyView();
 
-  // Mobile: no auto-riffle. Desktop: keep cinematic intro.
-  const doIntro = !reduced && !isCoarse();
+  // Opening scroll on BOTH mobile + laptop (same experience)
+  const doIntro = !reduced;
   introOn = doIntro;
   if (introOn && useBlur()) wrap?.classList.add('intro');
   else wrap?.classList.remove('intro', 'b2');
@@ -689,13 +739,15 @@ export function openSketchbook() {
     requestAnimationFrame(() => {
       layout();
       if (phonePortrait()) {
+        // Wait for landscape — then play the same opening scroll
         introQueued = doIntro;
         overlay.classList.add('need-rotate');
-        endIntro(true);
+        introOn = false;
+        wrap?.classList.remove('intro', 'b2');
         paint();
         return;
       }
-      if (doIntro) setTimeout(startIntro, 40);
+      if (doIntro) setTimeout(startIntro, 50);
       else {
         endIntro(true);
         paint();
@@ -718,6 +770,7 @@ export function closeSketchbook() {
   spring = null;
   turn = null;
   turning = false;
+  introBusy = false;
   endIntro();
   if (resizeTimer) {
     clearTimeout(resizeTimer);

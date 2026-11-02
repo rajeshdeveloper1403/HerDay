@@ -440,12 +440,17 @@ body.az-book-open .replay{
   /* Mobile: simpler shadows (blur filters caused idle shimmer) */
   .sb-cast.ambient,
   .sb-cast.contact,
-  .sb-cast.hair{ filter:none; opacity:.2; }
-  /* Keep preserve-3d so page-curl works; tilt locked via JS (rx/ry = 0) */
+  .sb-cast.hair{ filter:none; opacity:.18; }
+  /* Keep 3D curl; lock idle tilt via fixed transform */
   .sb-tilt{
     transform-style:preserve-3d;
     transform:rotateX(0deg) rotateY(0deg) scale(1);
   }
+  .curl, .strip, .face{
+    -webkit-backface-visibility:hidden;
+    backface-visibility:hidden;
+  }
+  .sb-book{ contain:layout style; }
   .sb-stage{ touch-action:none; -webkit-user-select:none; user-select:none; }
   .sb-zone{ touch-action:none; }
 }
