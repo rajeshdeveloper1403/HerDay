@@ -604,6 +604,7 @@
       <div class="vhs-caption" id="vhsCaption" aria-live="polite">
         <div class="vhs-mask" id="vhsTitleMask"></div>
         <div class="vhs-submask" id="vhsSubMask"></div>
+        <p class="vhs-open-hint" id="vhsOpenHint">Find your surprise book</p>
       </div>
 
       <button class="vhs-arrow vhs-arrow--l" type="button" aria-label="Previous book">
@@ -667,6 +668,38 @@
                 <image id="vhsPosterImg" width="474" height="900" preserveAspectRatio="none"></image>
               </g>
             </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="az-sketch" id="azSketch" role="dialog" aria-modal="true" aria-label="Opened sketchbook" aria-hidden="true">
+        <div class="az-sketch__wash" aria-hidden="true"></div>
+        <button class="az-sketch__close" type="button" id="azSketchClose">
+          <span class="az-sketch__x" aria-hidden="true">✕</span>
+          <span>Close Book</span>
+        </button>
+        <div class="az-sketch__inner">
+          <div class="sb-wrap" id="azSbWrap">
+            <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+              <filter id="az-sb-mblur-1"><feGaussianBlur stdDeviation="5 0"/></filter>
+              <filter id="az-sb-mblur-2"><feGaussianBlur stdDeviation="14 0"/></filter>
+            </svg>
+            <div class="sb-stage" id="azSbStage">
+              <button class="sb-arrow left" id="azSbLeft" type="button" aria-label="previous page">
+                <svg viewBox="0 0 14 44" width="14" height="44" fill="none" aria-hidden="true"><polyline points="11,3 3,22 11,41" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="sb-3d" id="azSb3d">
+                <div class="sb-tilt" id="azSbTilt">
+                  <div class="sb-cast ambient" aria-hidden="true"></div>
+                  <div class="sb-cast contact" aria-hidden="true"></div>
+                  <div class="sb-cast hair" aria-hidden="true"></div>
+                  <div class="sb-book" id="azSbBook"></div>
+                </div>
+              </div>
+              <button class="sb-arrow right" id="azSbRight" type="button" aria-label="next page">
+                <svg viewBox="0 0 14 44" width="14" height="44" fill="none" aria-hidden="true"><polyline points="3,3 11,22 3,41" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>

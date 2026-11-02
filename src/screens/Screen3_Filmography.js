@@ -5,6 +5,12 @@
    ============================================================ */
 import './Screen3_Filmography.css';
 import { $, reduceMotion } from '../core/utils.js';
+import {
+  initSketchbook,
+  openSketchbook,
+  closeSketchbook,
+  isSketchOpen,
+} from './AzhagiiiSketchbook.js';
 
 const SHEET = {
   covers: [
@@ -94,7 +100,7 @@ const BLOBS = [
 ];
 
 let root, stage, shelf, playBtn, cursorEl, detail, posterImg, blobsGroup;
-let titleMask, subMask, dustCanvas, dustCtx;
+let titleMask, subMask, dustCanvas, dustCtx, openHint;
 let dSub, dTitle, dSyn, dWatch;
 let tapes = [];
 let lifts = [];
@@ -107,6 +113,7 @@ let mx = 0, my = 0, cx = 0, cy = 0;
 let tiltX = 0, tiltY = 0;
 let onCover = false;
 let isOpen = false;
+let sketchMode = false;
 let activeOn = false;
 let raf = 0;
 let dustRaf = 0;
@@ -121,7 +128,6 @@ let wheelTimer = 0;
 let inkRAF = 0;
 let sheetAnims = [];
 let reduced = reduceMotion;
-let cursorState = 'default';
 let snapFrames = 0;
 
 function mod(n, m) {
@@ -239,12 +245,18 @@ function placeTapes(snap, liftK) {
     tapes[i].cv.style.setProperty('--shade', String((1 - o) * 0.5));
   }
 
-  if (playBtn) {
-    playBtn.hidden = true;
-    playBtn.style.display = 'none';
-    playBtn.style.opacity = '0';
-    playBtn.style.pointerEvents = 'none';
-  }
+  placePlay();
+}
+
+function placePlay() {
+  if (!playBtn) return;
+  const settled = !isOpen && Math.abs(T - s) < 0.45;
+  const cyShelf = VH / 2 - 20;
+  playBtn.hidden = false;
+  playBtn.style.left = `${W / 2}px`;
+  playBtn.style.top = `${cyShelf + H / 2 + 14}px`;
+  playBtn.classList.toggle('is-on', settled);
+  playBtn.setAttribute('aria-hidden', settled ? 'false' : 'true');
 }
 
 function filmIndex(scroll) {
@@ -403,13 +415,18 @@ function buildTapes() {
     el.addEventListener('pointerenter', () => { hover = v; });
     el.addEventListener('pointerleave', () => { if (hover === v) hover = -1; });
     el.addEventListener('click', (e) => {
-      if (suppressClick || dragging || isOpen) return;
       e.stopPropagation();
-      onTapeClick(v);
     });
     el.addEventListener('dblclick', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (isOpen) return;
+      const r = relIndex(v, s);
+      if (Math.abs(r) < 0.5) {
+        lastTapV = -1;
+        lastTapAt = 0;
+        openDetail();
+      }
     });
     stage.appendChild(el);
     tapes.push({ el, sp, cv, v });
@@ -421,7 +438,7 @@ function onTapeClick(v) {
   const r = relIndex(v, s);
   if (Math.abs(r) < 0.5) {
     const now = performance.now();
-    if (lastTapV === v && now - lastTapAt < 420) {
+    if (lastTapV === v && now - lastTapAt < 520) {
       lastTapV = -1;
       lastTapAt = 0;
       openDetail();
@@ -470,7 +487,6 @@ function step(now) {
 
   cx += (mx - cx) * (1 - Math.exp(-22 * dt));
   cy += (my - cy) * (1 - Math.exp(-22 * dt));
-  if (cursorEl) cursorEl.style.transform = `translate3d(${cx - 2}px, ${cy - 53}px, 0)`;
 
   const cyShelf = VH / 2 - 20;
   const settled = Math.abs(T - s) < 0.45;
@@ -496,41 +512,7 @@ function step(now) {
   const liftK = reduced || snap ? 1 : (1 - Math.exp(-12 * dt));
   placeTapes(snap, liftK);
 
-  updateCursorState();
   raf = requestAnimationFrame(step);
-}
-
-function setCursorClass(next) {
-  if (!cursorEl || next === cursorState) return;
-  cursorEl.classList.remove('spine', 'btn', 'open');
-  cursorState = next;
-  if (next !== 'default') cursorEl.classList.add(next);
-}
-
-function updateCursorState() {
-  if (!cursorEl) return;
-  if (isOpen) {
-    setCursorClass('default');
-    return;
-  }
-  if (onCover) {
-    setCursorClass('open');
-    return;
-  }
-  const over = document.elementFromPoint(mx, my);
-  if (!over || !root.contains(over)) {
-    setCursorClass('default');
-    return;
-  }
-  if (over.closest('.vhs-tape')) {
-    setCursorClass('spine');
-    return;
-  }
-  if (over.closest('button, a')) {
-    setCursorClass('btn');
-    return;
-  }
-  setCursorClass('default');
 }
 
 function fillDetail(film) {
@@ -613,11 +595,24 @@ function riseLines() {
   });
 }
 
+function setReading(on) {
+  if (root) root.classList.toggle('is-reading', on);
+  if (openHint) openHint.classList.toggle('is-gone', on);
+}
+
 function openDetail() {
-  if (isOpen || !detail) return;
+  if (isOpen) return;
   T = Math.round(T);
   s = T;
   const film = FILMS[filmIndex(s)];
+  if (film.id === 'azhagiii') {
+    isOpen = true;
+    sketchMode = true;
+    setReading(true);
+    openSketchbook();
+    return;
+  }
+  if (!detail) return;
   fillDetail(film);
   resetBlobs();
 
@@ -652,7 +647,16 @@ function openDetail() {
 }
 
 function closeDetail() {
-  if (!isOpen || !detail) return;
+  if (!isOpen) return;
+  if (sketchMode || isSketchOpen()) {
+    sketchMode = false;
+    closeSketchbook().then(() => {
+      isOpen = false;
+      setReading(false);
+    });
+    return;
+  }
+  if (!detail) return;
   const rect = coverRect();
   const top = rect.top;
   const right = W - rect.right;
@@ -680,6 +684,7 @@ function closeDetail() {
   sheetAnims.push(anim);
   anim.finished.then(() => {
     isOpen = false;
+    setReading(false);
     detail.classList.remove('is-on');
     detail.style.visibility = 'hidden';
     detail.style.pointerEvents = 'none';
@@ -687,6 +692,7 @@ function closeDetail() {
     sheetAnims = [];
   }).catch(() => {
     isOpen = false;
+    setReading(false);
     detail.classList.remove('is-on');
   });
 }
@@ -694,10 +700,9 @@ function closeDetail() {
 function onPointerMove(e) {
   mx = e.clientX;
   my = e.clientY;
-  if (cursorEl) cursorEl.classList.add('is-on');
   if (!dragging) return;
   const dx = e.clientX - dragX0;
-  if (Math.abs(dx) > 5) {
+  if (Math.abs(dx) > 8) {
     dragMoved = true;
     suppressClick = true;
     T = dragT0 - dx / (ws + gap);
@@ -706,7 +711,7 @@ function onPointerMove(e) {
 
 function onPointerDown(e) {
   if (isOpen) return;
-  if (e.target.closest('button, a, .vhs-play, .vhs-detail')) return;
+  if (e.target.closest('button, a, .vhs-play, .vhs-detail, .az-sketch')) return;
   dragging = true;
   dragMoved = false;
   dragX0 = e.clientX;
@@ -716,9 +721,15 @@ function onPointerDown(e) {
 
 function onPointerUp(e) {
   if (!dragging) return;
+  const moved = dragMoved;
   dragging = false;
   try { shelf.releasePointerCapture(e.pointerId); } catch (_) {}
   T = Math.round(T);
+  if (!moved && !isOpen) {
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const tape = hit?.closest?.('.vhs-tape');
+    if (tape) onTapeClick(Number(tape.dataset.v));
+  }
   setTimeout(() => { suppressClick = false; }, 40);
 }
 
@@ -752,13 +763,15 @@ function onKey(e) {
 
 function bind() {
   if (!root) return;
-  if (playBtn) {
-    playBtn.hidden = true;
-    playBtn.style.display = 'none';
-  }
+  playBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openDetail();
+  });
   root.querySelector('.vhs-arrow--l')?.addEventListener('click', () => { T = Math.round(T) - 1; });
   root.querySelector('.vhs-arrow--r')?.addEventListener('click', () => { T = Math.round(T) + 1; });
   root.querySelector('.vhs-detail__close')?.addEventListener('click', closeDetail);
+  root.querySelector('#azSketchClose')?.addEventListener('click', closeDetail);
   dWatch?.addEventListener('click', closeDetail);
 
   shelf.addEventListener('pointerdown', onPointerDown);
@@ -781,6 +794,7 @@ export function initFilmography() {
   blobsGroup = $('vhsInkBlobs');
   titleMask = $('vhsTitleMask');
   subMask = $('vhsSubMask');
+  openHint = $('vhsOpenHint');
   dustCanvas = $('vhsDust');
   dSub = $('vhsDSub');
   dTitle = $('vhsDTitle');
@@ -791,6 +805,7 @@ export function initFilmography() {
   seedDust();
   buildTapes();
   placeTapes(true);
+  initSketchbook();
   bind();
   window.addEventListener('resize', () => {
     measure();
@@ -816,10 +831,13 @@ export function startFilmography() {
   T = START;
   active = NOON_INDEX;
   isOpen = false;
+  sketchMode = false;
   hover = -1;
   dragging = false;
   lastTapV = -1;
   lastTapAt = 0;
+  setReading(false);
+  if (isSketchOpen()) closeSketchbook();
   if (detail) {
     detail.classList.remove('is-on');
     detail.style.visibility = 'hidden';
@@ -851,7 +869,10 @@ export function startFilmography() {
 export function resetFilmography() {
   activeOn = false;
   isOpen = false;
+  sketchMode = false;
   dragging = false;
+  setReading(false);
+  if (isSketchOpen()) closeSketchbook();
   if (raf) {
     cancelAnimationFrame(raf);
     raf = 0;
