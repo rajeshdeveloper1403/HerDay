@@ -5,6 +5,7 @@ import gsap from 'gsap';
 import { $, reduceMotion, isRecord } from './core/utils.js';
 import { initAudioContext } from './core/audio.js';
 import { scene3D } from './core/Scene3D.js';
+import { Screen1_3DBackground } from './screens/Screen1_3DBackground.js';
 
 // Screens
 import {
@@ -116,6 +117,7 @@ function resetAll() {
 
   resetScreen2();
   resetScreen1();
+  scene3D.registerModule('hero3D', new Screen1_3DBackground());
   played = false;
 }
 
@@ -130,8 +132,11 @@ const modalOpeners = {
 
 // 0. Initialize 3D Engine
 const webglEl = $('webglCanvas');
+let hero3D = null;
 if (webglEl) {
   scene3D.init(webglEl);
+  hero3D = new Screen1_3DBackground();
+  scene3D.registerModule('hero3D', hero3D);
 }
 
 // 1. Initialize Screen 1 with fire handler
@@ -139,6 +144,7 @@ initScreen1({
   onUserActivation: handleUserActivation,
   onFire: (geom) => {
     played = true;
+    if (hero3D) hero3D.disperseAndFade();
     const film = buildFilm(geom, {
       screen1: { burstHearts },
       onCompleteToScreen3: () => {
