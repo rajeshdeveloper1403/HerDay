@@ -4,11 +4,8 @@
  * Run: node scripts/generate-azhagiii-spreads.mjs
  *
  * Layout (mixed sides — sketch alternates L/R):
- *  p0  — dedication LEFT, sketch RIGHT
- *  p1  — sketch LEFT, note RIGHT
- *  p2  — note LEFT, sketch RIGHT
- *  …alternating…
- *  p8  — closing LEFT, sketch RIGHT
+ *  p0–p8 — Sketch1–9 with matching notes (content 1–9)
+ *  p9    — dedication only (For Azhagiii…)
  */
 import { createCanvas, loadImage } from 'canvas';
 import { mkdirSync, writeFileSync } from 'fs';
@@ -222,6 +219,245 @@ function inkPlate(ctx, img, box, opts = {}) {
   ctx.restore();
 }
 
+function wrapWords(ctx, text, maxW) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
+  const lines = [];
+  let cur = words[0];
+  for (let i = 1; i < words.length; i++) {
+    const next = `${cur} ${words[i]}`;
+    if (ctx.measureText(next).width <= maxW) cur = next;
+    else {
+      lines.push(cur);
+      cur = words[i];
+    }
+  }
+  lines.push(cur);
+  return lines;
+}
+
+/** Largest italic Georgia size that keeps text on ONE line. */
+function fitSingleLine(ctx, text, maxW, maxSize, minSize = 14) {
+  for (let s = maxSize; s >= minSize; s -= 0.5) {
+    ctx.font = `italic ${s}px Georgia`;
+    if (ctx.measureText(text).width <= maxW) return s;
+  }
+  return minSize;
+}
+
+function measureBlocks(blocks) {
+  let h = 0;
+  for (const b of blocks) h += (b.lh || 0) + b.gap;
+  return h;
+}
+
+function paintBlocks(ctx, blocks, box, color, scale, top, cx, maxW) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(box.x + 2, box.y + 2, box.w - 4, box.h - 4);
+  ctx.clip();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  let cy = top;
+  for (const b of blocks) {
+    if (b.kind === 'rule') {
+      const rw = Math.min(maxW * (b.wide ? 0.55 : 0.34), b.wide ? 160 : 110) * Math.min(scale, 1.15);
+      ctx.globalAlpha = b.alpha ?? 0.3;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = b.wide ? 1.35 : 1.2;
+      ctx.beginPath();
+      ctx.moveTo(cx - rw / 2, cy + 2 * scale);
+      ctx.lineTo(cx + rw / 2, cy + 2 * scale);
+      ctx.stroke();
+      cy += b.gap * scale;
+      continue;
+    }
+    const size = parseFloat(b.font) || 16;
+    const drawSize = size * scale;
+    cy += (b.lh * scale) / 2;
+    ctx.fillStyle = b.color || color;
+    ctx.font = `${b.weight || 'italic'} ${drawSize.toFixed(2)}px Georgia`;
+    ctx.globalAlpha = b.alpha;
+    ctx.fillText(b.text, cx, cy);
+    cy += (b.lh * scale) / 2 + b.gap * scale;
+  }
+  ctx.restore();
+}
+
+/**
+ * Pro note: title (single line) · rule · quote · body · close.
+ */
+function writeNote(ctx, note, box, color = '#3a3228') {
+  const padX = box.w * 0.06;
+  const padY = box.h * 0.045;
+  const maxW = box.w - padX * 2;
+  const cx = box.x + box.w / 2;
+  const innerH = box.h - padY * 2;
+
+  const trials = [
+    { title: 32, quote: 18, body: 19.5, close: 17, row: 1.34, sec: 1 },
+    { title: 28, quote: 17, body: 18, close: 16, row: 1.3, sec: 0.94 },
+    { title: 25, quote: 16, body: 16.5, close: 15, row: 1.26, sec: 0.88 },
+    { title: 22, quote: 15, body: 15.5, close: 14, row: 1.22, sec: 0.84 },
+  ];
+
+  const build = (t) => {
+    const blocks = [];
+    const add = (text, size, alpha, gapEnd, opts = {}) => {
+      if (!text) return;
+      const font = `${opts.weight || 'italic'} ${size}px Georgia`;
+      ctx.font = font;
+      const rows = wrapWords(ctx, text, maxW);
+      const lh = size * t.row;
+      rows.forEach((row, i) => {
+        blocks.push({
+          kind: 'text',
+          text: row,
+          font,
+          weight: opts.weight || 'italic',
+          alpha,
+          lh,
+          gap: i === rows.length - 1 ? gapEnd : 0,
+          color: opts.color,
+        });
+      });
+    };
+
+    // Heading ALWAYS one line — shrink to fit width
+    if (note.title) {
+      const ts = fitSingleLine(ctx, note.title, maxW, t.title, 15);
+      const font = `italic ${ts}px Georgia`;
+      blocks.push({
+        kind: 'text',
+        text: note.title,
+        font,
+        weight: 'italic',
+        alpha: 0.95,
+        lh: ts * t.row,
+        gap: 8 * t.sec,
+      });
+    }
+    blocks.push({ kind: 'rule', lh: 0, gap: 12 * t.sec });
+    if (note.quote) {
+      const q = note.quote.replace(/^["“]|["”]$/g, '');
+      add(`“${q}”`, t.quote, 0.58, 16 * t.sec);
+    }
+    (note.body || []).forEach((para, pi) => {
+      const last = pi === note.body.length - 1;
+      add(para, t.body, 0.84, (last ? 14 : 11) * t.sec);
+    });
+    add(note.close, t.close, 0.72, 0);
+
+    return { blocks, h: measureBlocks(blocks) };
+  };
+
+  let chosen = null;
+  for (const t of trials) {
+    const pack = build(t);
+    if (pack.h <= innerH) {
+      chosen = pack;
+      break;
+    }
+    chosen = pack;
+  }
+  const scale = chosen.h > innerH ? Math.max(0.92, innerH / chosen.h) : 1;
+  const top = box.y + padY + (innerH - chosen.h * scale) / 2;
+  paintBlocks(ctx, chosen.blocks, box, color, scale, top, cx, maxW);
+}
+
+/** Birthday letter across both pages; closing wish highlighted at bottom. */
+function writeLetterPage(ctx, paras, box, opts = {}) {
+  const padX = box.w * 0.07;
+  const padY = box.h * 0.05;
+  const maxW = box.w - padX * 2;
+  const cx = box.x + box.w / 2;
+  const innerH = box.h - padY * 2;
+  const color = '#3a3228';
+
+  const trials = [
+    { head: 25, body: 14.8, wish: 14.8, wishHead: 21, row: 1.26, sec: 1 },
+    { head: 23, body: 14, wish: 14, wishHead: 19.5, row: 1.22, sec: 0.92 },
+    { head: 21, body: 13.2, wish: 13.2, wishHead: 18, row: 1.18, sec: 0.86 },
+  ];
+
+  const build = (t) => {
+    const blocks = [];
+    const add = (text, size, alpha, gapEnd, weight = 'italic') => {
+      if (!text) return;
+      const font = `${weight} ${size}px Georgia`;
+      ctx.font = font;
+      const rows = wrapWords(ctx, text, maxW);
+      const lh = size * t.row;
+      rows.forEach((row, i) => {
+        blocks.push({
+          kind: 'text',
+          text: row,
+          font,
+          weight,
+          alpha,
+          lh,
+          gap: i === rows.length - 1 ? gapEnd : 0,
+        });
+      });
+    };
+
+    for (const p of paras) {
+      if (p.kind === 'title') {
+        const ts = fitSingleLine(ctx, p.text, maxW, t.head + 4, 16);
+        blocks.push({
+          kind: 'text',
+          text: p.text,
+          font: `italic ${ts}px Georgia`,
+          weight: 'italic',
+          alpha: 0.95,
+          lh: ts * t.row,
+          gap: 8 * t.sec,
+        });
+        blocks.push({ kind: 'rule', lh: 0, gap: 14 * t.sec, wide: true });
+      } else if (p.kind === 'rule') {
+        blocks.push({ kind: 'rule', lh: 0, gap: 12 * t.sec, wide: true, alpha: 0.26 });
+      } else if (p.kind === 'wishHead') {
+        blocks.push({ kind: 'rule', lh: 0, gap: 8 * t.sec, wide: true, alpha: 0.4 });
+        blocks.push({ kind: 'rule', lh: 0, gap: 12 * t.sec, wide: true, alpha: 0.22 });
+        const ts = fitSingleLine(ctx, p.text, maxW, t.wishHead + 2, 16);
+        blocks.push({
+          kind: 'text',
+          text: p.text,
+          font: `italic ${ts}px Georgia`,
+          weight: 'italic',
+          alpha: 0.97,
+          lh: ts * t.row,
+          gap: 12 * t.sec,
+          color: '#241e18',
+        });
+      } else if (p.kind === 'wish') {
+        add(p.text, t.wish + 0.6, 0.9, 9 * t.sec);
+      } else if (p.kind === 'wishClose') {
+        add(p.text, t.wish + 1.2, 0.95, 6 * t.sec);
+        blocks.push({ kind: 'rule', lh: 0, gap: 0, wide: true, alpha: 0.28 });
+      } else {
+        add(p.text, t.body, p.alpha ?? 0.82, 9 * t.sec);
+      }
+    }
+
+    return { blocks, h: measureBlocks(blocks) };
+  };
+
+  let chosen = null;
+  for (const t of trials) {
+    const pack = build(t);
+    if (pack.h <= innerH) {
+      chosen = pack;
+      break;
+    }
+    chosen = pack;
+  }
+  const scale = chosen.h > innerH ? Math.max(0.9, innerH / chosen.h) : 1;
+  const top = box.y + padY + Math.max(0, (innerH - chosen.h * scale) * (opts.alignTop ? 0.08 : 0.35));
+  paintBlocks(ctx, chosen.blocks, box, color, scale, top, cx, maxW);
+}
+
 function writeLines(ctx, lines, box, color = '#3a3228') {
   ctx.save();
   ctx.fillStyle = color;
@@ -402,21 +638,14 @@ function pageDoodles(ctx, box, seed) {
   const rand = rng(seed);
   const pad = Math.min(box.w, box.h) * 0.065;
   const pick = () => DOODLE_KINDS[Math.floor(rand() * DOODLE_KINDS.length)];
+  // Corners only — keep the text column clear for clean alignment
   const spots = [
-    { x: box.x + pad, y: box.y + pad, kind: 'flower', s: 26 + rand() * 14, a: -0.45 + rand() * 0.35 },
-    { x: box.x + box.w - pad, y: box.y + pad * 1.05, kind: 'heart', s: 18 + rand() * 12, a: 0.15 + rand() * 0.35 },
-    { x: box.x + pad * 1.05, y: box.y + box.h - pad, kind: 'leaf', s: 20 + rand() * 12, a: -1.2 + rand() * 0.45 },
-    { x: box.x + box.w - pad, y: box.y + box.h - pad * 1.05, kind: 'star', s: 11 + rand() * 6, a: 0 },
-    // second ring near corners
-    { x: box.x + pad * 2.4, y: box.y + pad * 0.85, kind: pick(), s: 10 + rand() * 8, a: rand() * 0.8 },
-    { x: box.x + box.w - pad * 2.5, y: box.y + pad * 2.2, kind: pick(), s: 11 + rand() * 7, a: rand() * 0.6 },
-    { x: box.x + pad * 2.2, y: box.y + box.h - pad * 2.3, kind: pick(), s: 12 + rand() * 8, a: -0.4 + rand() * 0.8 },
-    { x: box.x + box.w - pad * 2.3, y: box.y + box.h - pad * 0.9, kind: pick(), s: 10 + rand() * 7, a: rand() * 0.5 },
-    // mid-edge accents
-    { x: box.x + pad * 0.85, y: box.y + box.h * (0.32 + rand() * 0.18), kind: pick(), s: 14 + rand() * 10, a: rand() * 0.6 },
-    { x: box.x + box.w - pad * 0.8, y: box.y + box.h * (0.38 + rand() * 0.2), kind: pick(), s: 13 + rand() * 9, a: rand() * 0.7 },
-    { x: box.x + box.w * (0.28 + rand() * 0.18), y: box.y + pad * 0.75, kind: pick(), s: 9 + rand() * 7, a: rand() },
-    { x: box.x + box.w * (0.55 + rand() * 0.2), y: box.y + box.h - pad * 0.8, kind: pick(), s: 10 + rand() * 7, a: rand() },
+    { x: box.x + pad, y: box.y + pad, kind: 'flower', s: 22 + rand() * 10, a: -0.45 + rand() * 0.35 },
+    { x: box.x + box.w - pad, y: box.y + pad * 1.05, kind: 'heart', s: 16 + rand() * 10, a: 0.15 + rand() * 0.35 },
+    { x: box.x + pad * 1.05, y: box.y + box.h - pad, kind: 'leaf', s: 18 + rand() * 10, a: -1.2 + rand() * 0.45 },
+    { x: box.x + box.w - pad, y: box.y + box.h - pad * 1.05, kind: 'star', s: 10 + rand() * 5, a: 0 },
+    { x: box.x + pad * 2.2, y: box.y + pad * 0.9, kind: pick(), s: 9 + rand() * 6, a: rand() * 0.8 },
+    { x: box.x + box.w - pad * 2.2, y: box.y + box.h - pad * 0.95, kind: pick(), s: 9 + rand() * 6, a: rand() * 0.5 },
   ];
 
   ctx.save();
@@ -467,128 +696,157 @@ const s7 = await loadImage(join(HER, 'Sketch7.png'));
 const s8 = await loadImage(join(HER, 'Sketch8.png'));
 const s9 = await loadImage(join(HER, 'sketch9.png'));
 
-const note = (lines) => (ctx, box) => writeLines(ctx, lines, box);
+const note = (content) => (ctx, box) => writeNote(ctx, content, box);
+const lines = (items) => (ctx, box) => writeLines(ctx, items, box);
 const sketch = (img, opts) => (ctx, box) => inkPlate(ctx, img, box, opts);
 
-/* Mixed sides: sketch alternates left ↔ right across pages */
+/* Condensed notes — meaning kept. Image order: Sketch3, Sketch1, Sketch2, then 4–9. */
+const N1 = {
+  title: 'Her Beautiful, Quiet Presence',
+  quote: 'She didn’t have to say a word to become someone special to me.',
+  body: [
+    'The first time I saw her, she felt so different — gentle, quiet, and incredibly adorable. Her little smile and innocent eyes said everything. Just being herself was enough.',
+    'She made an ordinary moment feel unforgettable without even realizing it. Maybe she never knew how precious she looked. But I did.',
+    'Even today, that first glimpse still makes me smile — the most beautiful stories begin with the simplest moments.',
+  ],
+  close: 'She was quiet, she was adorable, and she became one of my favorite memories.',
+};
+
+const N2 = {
+  title: 'Her Little, Adorable Smile',
+  quote: 'The sweetest little smile in the world.',
+  body: [
+    'Once she was a little girl with the cutest smile, the most innocent eyes, and a heart full of little dreams — smiling without a reason, laughing at the smallest things.',
+    'That little girl is still there in her smile today — the same innocence, the same sweetness, the same adorable spark.',
+    'I hope she never loses that little girl’s smile, and always finds reasons to laugh and dreams to follow.',
+  ],
+  close: 'The little girl she once was will always be one of the most beautiful parts of who she is today.',
+};
+
+const N3 = {
+  title: 'Her Cute and Innocent Little World',
+  quote: 'A little soul with a heart full of sweetness.',
+  body: [
+    'There is something so precious about her innocence — the way she holds her little toy, the quietness in her eyes, the sweetness in her presence.',
+    'She deserves a world where she always feels safe, loved, and free to be her adorable self.',
+    'Soft quiet. Soft smile. Soft heart.',
+  ],
+  close: 'In her quiet little world, even the smallest things feel like love.',
+};
+
+const N4 = {
+  title: 'Her Incredible Talent and Grace',
+  quote: 'A heart full of grace, a soul full of endless talent.',
+  body: [
+    'She was never just a beautiful girl — she was a girl with so many wonderful talents. Her drawings, her writing, everything she created carried a little piece of her soul.',
+    'To me, she was the greatest: grace and sweetness in everything she did. I hope she always remembers how talented she is.',
+  ],
+  close: 'Her talent is quiet proof of how brightly she was always meant to shine.',
+};
+
+const N5 = {
+  title: 'Her Smile That Feels Like Home',
+  quote: 'Some smiles become your favorite place in the world.',
+  body: [
+    'There is something so adorable about her sleepy little face — soft smile, sleepy eyes, that cute lazy expression. She isn’t even trying, and somehow she is still the cutest.',
+    'I wish I could keep these little mornings forever. Even her sleepy moments make my heart smile.',
+  ],
+  close: 'Even her quietest mornings feel like home.',
+};
+
+const N6 = {
+  title: 'The Tenderness She Deserves',
+  quote: 'A little moment of love, a lifetime of tenderness.',
+  body: [
+    'Look how naturally children are drawn to her. That little kiss is the sweetest moment — proof of how lovable, gentle, and wonderful she is.',
+    'Sometimes I look at this picture and imagine being that little kid. Haha — maybe I’m a little jealous! She deserves so much love and happiness every day.',
+  ],
+  close: 'She was made for tenderness — and she deserves every bit of it.',
+};
+
+const N7 = {
+  title: 'Her Happiness in the Little Moments',
+  quote: 'Her happiness is the kind of beauty that stays in your heart.',
+  body: [
+    'Surrounded by nature, she looks like a little piece of sunshine. She doesn’t need anything extraordinary to be extraordinary — her happiness is already enough.',
+    'I love how the smallest moments make her smile, and how that smile stays long after. I hope life gives her countless reasons to laugh and shine.',
+  ],
+  close: 'Her happiness is the kind of beauty that stays.',
+};
+
+const N8 = {
+  title: 'Her Soft and Beautiful Charm',
+  quote: 'A little elegance, a little sweetness, and a whole lot of love.',
+  body: [
+    'Awww — look how cute she is. Soft dress, peaceful expression, that sweet little smile. Effortless charm that makes you want to say, “How can someone be this adorable?”',
+    'Beyond her looks, it’s her kind heart and wonderful character. She deserves to feel just as beautiful and loved as she makes the world feel.',
+  ],
+  close: 'Soft charm. Soft heart. Softly unforgettable.',
+};
+
+const N9 = {
+  title: 'Her Little Moments That Mean Everything',
+  quote: 'Even the smallest moments with her become the sweetest memories.',
+  body: [
+    'Sometimes the simplest moments show how adorable she is — a little smile at her phone, a quiet moment in her own world, that shy expression she gets without realizing it.',
+    'Her kindness shines in the smallest things. Just being herself makes ordinary moments beautiful.',
+  ],
+  close: 'Even her smallest moments become the sweetest memories.',
+};
+
+/* Order: Sketch3→N1, Sketch1→N2, Sketch2→N3, Sketch4–9→N4–9. Dedication on p9. */
+await makeSpread(PLATE_FILES[0], note(N1), sketch(s3), 'p0.png', 1);
+await makeSpread(PLATE_FILES[1], sketch(s1), note(N2), 'p1.png', 2);
+await makeSpread(PLATE_FILES[2], note(N3), sketch(s2), 'p2.png', 3);
+await makeSpread(PLATE_FILES[3], sketch(s4), note(N4), 'p3.png', 4);
+await makeSpread(PLATE_FILES[4], note(N5), sketch(s5), 'p4.png', 5);
+await makeSpread(PLATE_FILES[5], sketch(s6), note(N6), 'p5.png', 6);
+await makeSpread(PLATE_FILES[6], note(N7), sketch(s7), 'p6.png', 7);
+await makeSpread(PLATE_FILES[7], sketch(s8), note(N8), 'p7.png', 8);
+await makeSpread(PLATE_FILES[8], note(N9), sketch(s9), 'p8.png', 9);
+
+/* Last spread — full birthday letter across both pages; wish highlighted at bottom. */
+const LETTER_LEFT = [
+  { kind: 'title', text: 'Happy Birthday, Nandhana Azhagiiiyeaaaa!' },
+  { text: 'I spent quite a bit of time thinking about what to write for you.' },
+  { text: 'Your birthday has always been a special day for me.' },
+  { text: 'So, this year, I felt like doing something a little different for you.' },
+  { text: 'And that’s why I made this little surprise.' },
+  { text: 'It might not be something big. It might not even be perfect.' },
+  { text: 'But while making it, I thought about every little detail.' },
+  { text: 'Because the small efforts we make for the people who matter to us always carry a special meaning.' },
+  { text: 'When I think about you, it’s not always the big moments that come to my mind first.' },
+  { text: 'Sometimes, it’s the little things that make a memory beautiful.' },
+  { text: 'I just want you to always be happy.' },
+  { text: 'I hope you achieve everything you’re working towards.' },
+  { text: 'I hope you keep smiling, laughing, and creating lots of beautiful memories.' },
+  { text: 'And one day, when you look back at this birthday…' },
+  { text: 'I hope this little surprise reminds you of one simple thing.' },
+  { text: 'That someone took a little extra time for you, thought about every small detail, and made something just for you.' },
+  { text: 'Because you’re not just another person. You’re someone who will always have a special place in my life.' },
+];
+
+const LETTER_RIGHT = [
+  { text: 'And I don’t think I need to explain that any further.' },
+  { text: 'Sometimes, the most beautiful things are the ones we understand without having to explain them.' },
+  { text: 'Keep smiling. Always stay the same crazy, cute, jolly, and wonderful person you are.' },
+  { text: 'And one more thing… thank you for being such a beautiful memory in my life.' },
+  { text: 'I’m doing all this not because of love or because I expect anything from you.' },
+  { text: 'It’s simply because some people become special in our lives in a way that doesn’t need a relationship or a label. And for me, you’re one of those people.' },
+  { text: 'Some people will always remain special, no matter how life changes. And you’ll always be one of them.' },
+  { kind: 'wishHead', text: 'Once again, Happiest Birthday, Nandhana!' },
+  { kind: 'wish', text: 'May this new year of your life bring you endless happiness, beautiful surprises, success in everything you do, and countless reasons to smile.' },
+  { kind: 'wish', text: 'May all your dreams come true, may you always find happiness in the little things, and may life give you all the beautiful things you truly deserve.' },
+  { kind: 'wish', text: 'Stay happy, stay crazy, stay cute, and keep being the wonderful person you are.' },
+  { kind: 'wishClose', text: 'Wishing you a beautiful birthday and an even more beautiful year ahead!' },
+];
+
 await makeSpread(
   PLATE_FILES[0],
-  note([
-    { text: 'For', font: 'italic 28px Georgia', gap: 42, alpha: 0.7 },
-    { text: 'Azhagiii', font: 'italic 64px Georgia', gap: 58, alpha: 0.92 },
-    { text: 'Happy Birthday', font: 'italic 34px Georgia', gap: 36, alpha: 0.82 },
-    { text: 'A special book', font: 'italic 22px Georgia', gap: 28, alpha: 0.62 },
-    { text: 'for someone special', font: 'italic 22px Georgia', gap: 40, alpha: 0.62 },
-  ]),
-  sketch(s3),
-  'p0.png',
-  1,
-);
-
-await makeSpread(
-  PLATE_FILES[1],
-  sketch(s1),
-  note([
-    { text: 'That little smile', font: 'italic 30px Georgia', gap: 42, alpha: 0.84 },
-    { text: 'still lights up', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'every room.', font: 'italic 28px Georgia', gap: 52, alpha: 0.78 },
-  ]),
-  'p1.png',
-  2,
-);
-
-await makeSpread(
-  PLATE_FILES[2],
-  note([
-    { text: 'Sunshine days', font: 'italic 30px Georgia', gap: 42, alpha: 0.84 },
-    { text: 'and soft toys —', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'always you.', font: 'italic 28px Georgia', gap: 52, alpha: 0.78 },
-  ]),
-  sketch(s2),
-  'p2.png',
-  3,
-);
-
-await makeSpread(
-  PLATE_FILES[3],
-  sketch(s4),
-  note([
-    { text: 'Grace in every', font: 'italic 30px Georgia', gap: 42, alpha: 0.84 },
-    { text: 'step, bells and', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'gold and fire.', font: 'italic 28px Georgia', gap: 52, alpha: 0.78 },
-  ]),
-  'p3.png',
-  4,
-);
-
-await makeSpread(
-  PLATE_FILES[4],
-  note([
-    { text: 'A smile that', font: 'italic 30px Georgia', gap: 42, alpha: 0.84 },
-    { text: 'makes the page', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'look back.', font: 'italic 28px Georgia', gap: 52, alpha: 0.78 },
-  ]),
-  sketch(s5),
-  'p4.png',
-  5,
-);
-
-await makeSpread(
-  PLATE_FILES[5],
-  sketch(s6, { rotate: 0 }),
-  note([
-    { text: 'Soft love,', font: 'italic 30px Georgia', gap: 42, alpha: 0.84 },
-    { text: 'kept close —', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'sister hearts.', font: 'italic 28px Georgia', gap: 52, alpha: 0.78 },
-  ]),
-  'p5.png',
-  6,
-);
-
-await makeSpread(
-  PLATE_FILES[6],
-  note([
-    { text: 'Under open sky,', font: 'italic 30px Georgia', gap: 42, alpha: 0.84 },
-    { text: 'that same warm', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'brightness.', font: 'italic 28px Georgia', gap: 52, alpha: 0.78 },
-  ]),
-  sketch(s7),
-  'p6.png',
-  7,
-);
-
-await makeSpread(
-  PLATE_FILES[7],
-  sketch(s8),
-  note([
-    { text: 'Quiet beauty,', font: 'italic 30px Georgia', gap: 42, alpha: 0.84 },
-    { text: 'soft as dusk', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'and just as sure.', font: 'italic 28px Georgia', gap: 52, alpha: 0.78 },
-  ]),
-  'p7.png',
-  8,
-);
-
-await makeSpread(
-  PLATE_FILES[8],
-  note([
-    { text: 'Keep this smile', font: 'italic 32px Georgia', gap: 44, alpha: 0.84 },
-    { text: 'the way the page', font: 'italic 28px Georgia', gap: 40, alpha: 0.78 },
-    { text: 'keeps looking back.', font: 'italic 28px Georgia', gap: 56, alpha: 0.78 },
-    { text: '— with love', font: 'italic 22px Georgia', gap: 28, alpha: 0.6 },
-  ]),
-  sketch(s9),
-  'p8.png',
-  9,
-);
-
-/* Last empty spread — ready for future writing / photos */
-await makeSpread(
-  PLATE_FILES[0],
-  () => {},
-  () => {},
+  (ctx, box) => writeLetterPage(ctx, LETTER_LEFT, box, { alignTop: true }),
+  (ctx, box) => writeLetterPage(ctx, LETTER_RIGHT, box, { alignTop: true }),
   'p9.png',
   11,
 );
 
-console.log('done — doodles, half Sketch7, empty last page');
+console.log('done — single-line headings + birthday letter on p9');
