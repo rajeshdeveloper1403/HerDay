@@ -251,12 +251,18 @@ function measureBlocks(blocks) {
   return h;
 }
 
-function paintBlocks(ctx, blocks, box, color, scale, top, cx, maxW) {
+/** Draw one line — left (novel body) or center (titles / epigraphs). */
+function drawAlignedLine(ctx, text, x, y, maxW, align) {
+  ctx.textAlign = align === 'left' ? 'left' : 'center';
+  ctx.fillText(text, align === 'left' ? x : x + maxW / 2, y);
+}
+
+function paintBlocks(ctx, blocks, box, color, scale, top, leftX, maxW) {
+  const cx = leftX + maxW / 2;
   ctx.save();
   ctx.beginPath();
   ctx.rect(box.x + 2, box.y + 2, box.w - 4, box.h - 4);
   ctx.clip();
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   let cy = top;
@@ -277,77 +283,82 @@ function paintBlocks(ctx, blocks, box, color, scale, top, cx, maxW) {
     const drawSize = size * scale;
     cy += (b.lh * scale) / 2;
     ctx.fillStyle = b.color || color;
-    ctx.font = `${b.weight || 'italic'} ${drawSize.toFixed(2)}px Georgia`;
+    ctx.font = `${b.weight || 'normal'} ${drawSize.toFixed(2)}px Georgia`;
     ctx.globalAlpha = b.alpha;
-    ctx.fillText(b.text, cx, cy);
+    const align = b.align || 'center';
+    drawAlignedLine(ctx, b.text, leftX, cy, maxW, align === 'center' ? 'center' : 'left');
     cy += (b.lh * scale) / 2 + b.gap * scale;
   }
   ctx.restore();
 }
 
 /**
- * Pro note: title (single line) · rule · quote · body · close.
+ * Pro note — chapter title centered; body reads like a real book (roman + justify).
  */
 function writeNote(ctx, note, box, color = '#3a3228') {
-  const padX = box.w * 0.06;
-  const padY = box.h * 0.045;
+  const padX = box.w * 0.1;
+  const padY = box.h * 0.05;
   const maxW = box.w - padX * 2;
-  const cx = box.x + box.w / 2;
+  const leftX = box.x + padX;
   const innerH = box.h - padY * 2;
+  const wrapW = maxW * 0.98;
 
   const trials = [
-    { title: 32, quote: 18, body: 19.5, close: 17, row: 1.34, sec: 1 },
-    { title: 28, quote: 17, body: 18, close: 16, row: 1.3, sec: 0.94 },
-    { title: 25, quote: 16, body: 16.5, close: 15, row: 1.26, sec: 0.88 },
-    { title: 22, quote: 15, body: 15.5, close: 14, row: 1.22, sec: 0.84 },
+    { title: 30, quote: 16.5, body: 17.5, close: 15.5, row: 1.48, sec: 1 },
+    { title: 27, quote: 15.5, body: 16.5, close: 14.5, row: 1.42, sec: 0.94 },
+    { title: 24, quote: 14.5, body: 15.5, close: 14, row: 1.38, sec: 0.88 },
+    { title: 21, quote: 14, body: 14.5, close: 13.5, row: 1.34, sec: 0.84 },
   ];
 
   const build = (t) => {
     const blocks = [];
     const add = (text, size, alpha, gapEnd, opts = {}) => {
       if (!text) return;
-      const font = `${opts.weight || 'italic'} ${size}px Georgia`;
+      const weight = opts.weight || 'normal';
+      const font = `${weight} ${size}px Georgia`;
       ctx.font = font;
-      const rows = wrapWords(ctx, text, maxW);
+      const rows = wrapWords(ctx, text, wrapW);
       const lh = size * t.row;
       rows.forEach((row, i) => {
         blocks.push({
           kind: 'text',
           text: row,
           font,
-          weight: opts.weight || 'italic',
+          weight,
           alpha,
           lh,
           gap: i === rows.length - 1 ? gapEnd : 0,
           color: opts.color,
+          align: opts.align || 'left',
+          lastInPara: i === rows.length - 1,
         });
       });
     };
 
-    // Heading ALWAYS one line — shrink to fit width
     if (note.title) {
       const ts = fitSingleLine(ctx, note.title, maxW, t.title, 15);
-      const font = `italic ${ts}px Georgia`;
       blocks.push({
         kind: 'text',
         text: note.title,
-        font,
+        font: `italic ${ts}px Georgia`,
         weight: 'italic',
         alpha: 0.95,
-        lh: ts * t.row,
+        lh: ts * 1.25,
         gap: 8 * t.sec,
+        align: 'center',
+        lastInPara: true,
       });
     }
-    blocks.push({ kind: 'rule', lh: 0, gap: 12 * t.sec });
+    blocks.push({ kind: 'rule', lh: 0, gap: 14 * t.sec });
     if (note.quote) {
       const q = note.quote.replace(/^["“]|["”]$/g, '');
-      add(`“${q}”`, t.quote, 0.58, 16 * t.sec);
+      add(`“${q}”`, t.quote, 0.62, 18 * t.sec, { weight: 'italic', align: 'center' });
     }
     (note.body || []).forEach((para, pi) => {
       const last = pi === note.body.length - 1;
-      add(para, t.body, 0.84, (last ? 14 : 11) * t.sec);
+      add(para, t.body, 0.88, (last ? 16 : 14) * t.sec, { weight: 'normal', align: 'left' });
     });
-    add(note.close, t.close, 0.72, 0);
+    add(note.close, t.close, 0.78, 0, { weight: 'italic', align: 'left' });
 
     return { blocks, h: measureBlocks(blocks) };
   };
@@ -363,31 +374,33 @@ function writeNote(ctx, note, box, color = '#3a3228') {
   }
   const scale = chosen.h > innerH ? Math.max(0.92, innerH / chosen.h) : 1;
   const top = box.y + padY + (innerH - chosen.h * scale) / 2;
-  paintBlocks(ctx, chosen.blocks, box, color, scale, top, cx, maxW);
+  paintBlocks(ctx, chosen.blocks, box, color, scale, top, leftX, maxW);
 }
 
-/** Birthday letter across both pages; closing wish highlighted at bottom. */
+/** Birthday letter — book reading feel; wish centered as a closing blessing. */
 function writeLetterPage(ctx, paras, box, opts = {}) {
-  const padX = box.w * 0.07;
-  const padY = box.h * 0.05;
+  const padX = box.w * 0.1;
+  const padY = box.h * 0.048;
   const maxW = box.w - padX * 2;
-  const cx = box.x + box.w / 2;
+  const leftX = box.x + padX;
   const innerH = box.h - padY * 2;
+  const wrapW = maxW * 0.98;
   const color = '#3a3228';
 
   const trials = [
-    { head: 25, body: 14.8, wish: 14.8, wishHead: 21, row: 1.26, sec: 1 },
-    { head: 23, body: 14, wish: 14, wishHead: 19.5, row: 1.22, sec: 0.92 },
-    { head: 21, body: 13.2, wish: 13.2, wishHead: 18, row: 1.18, sec: 0.86 },
+    { head: 24, body: 15, wish: 14.5, wishHead: 19.5, row: 1.42, sec: 1 },
+    { head: 22, body: 14.2, wish: 13.8, wishHead: 18, row: 1.36, sec: 0.92 },
+    { head: 20, body: 13.4, wish: 13.2, wishHead: 16.5, row: 1.3, sec: 0.86 },
   ];
 
   const build = (t) => {
     const blocks = [];
-    const add = (text, size, alpha, gapEnd, weight = 'italic') => {
+    const add = (text, size, alpha, gapEnd, opts = {}) => {
       if (!text) return;
+      const weight = opts.weight || 'normal';
       const font = `${weight} ${size}px Georgia`;
       ctx.font = font;
-      const rows = wrapWords(ctx, text, maxW);
+      const rows = wrapWords(ctx, text, wrapW);
       const lh = size * t.row;
       rows.forEach((row, i) => {
         blocks.push({
@@ -398,21 +411,26 @@ function writeLetterPage(ctx, paras, box, opts = {}) {
           alpha,
           lh,
           gap: i === rows.length - 1 ? gapEnd : 0,
+          align: opts.align || 'justify',
+          lastInPara: i === rows.length - 1,
+          color: opts.color,
         });
       });
     };
 
     for (const p of paras) {
       if (p.kind === 'title') {
-        const ts = fitSingleLine(ctx, p.text, maxW, t.head + 4, 16);
+        const ts = fitSingleLine(ctx, p.text, maxW, t.head + 4, 15);
         blocks.push({
           kind: 'text',
           text: p.text,
           font: `italic ${ts}px Georgia`,
           weight: 'italic',
           alpha: 0.95,
-          lh: ts * t.row,
+          lh: ts * 1.28,
           gap: 8 * t.sec,
+          align: 'center',
+          lastInPara: true,
         });
         blocks.push({ kind: 'rule', lh: 0, gap: 14 * t.sec, wide: true });
       } else if (p.kind === 'rule') {
@@ -420,24 +438,26 @@ function writeLetterPage(ctx, paras, box, opts = {}) {
       } else if (p.kind === 'wishHead') {
         blocks.push({ kind: 'rule', lh: 0, gap: 8 * t.sec, wide: true, alpha: 0.4 });
         blocks.push({ kind: 'rule', lh: 0, gap: 12 * t.sec, wide: true, alpha: 0.22 });
-        const ts = fitSingleLine(ctx, p.text, maxW, t.wishHead + 2, 16);
+        const ts = fitSingleLine(ctx, p.text, maxW, t.wishHead + 2, 15);
         blocks.push({
           kind: 'text',
           text: p.text,
           font: `italic ${ts}px Georgia`,
           weight: 'italic',
           alpha: 0.97,
-          lh: ts * t.row,
+          lh: ts * 1.28,
           gap: 12 * t.sec,
           color: '#241e18',
+          align: 'center',
+          lastInPara: true,
         });
       } else if (p.kind === 'wish') {
-        add(p.text, t.wish + 0.6, 0.9, 9 * t.sec);
+        add(p.text, t.wish + 0.4, 0.9, 10 * t.sec, { weight: 'normal', align: 'left' });
       } else if (p.kind === 'wishClose') {
-        add(p.text, t.wish + 1.2, 0.95, 6 * t.sec);
+        add(p.text, t.wish + 1, 0.95, 6 * t.sec, { weight: 'italic', align: 'center' });
         blocks.push({ kind: 'rule', lh: 0, gap: 0, wide: true, alpha: 0.28 });
       } else {
-        add(p.text, t.body, p.alpha ?? 0.82, 9 * t.sec);
+        add(p.text, t.body, p.alpha ?? 0.88, 11 * t.sec, { weight: 'normal', align: 'left' });
       }
     }
 
@@ -454,8 +474,8 @@ function writeLetterPage(ctx, paras, box, opts = {}) {
     chosen = pack;
   }
   const scale = chosen.h > innerH ? Math.max(0.9, innerH / chosen.h) : 1;
-  const top = box.y + padY + Math.max(0, (innerH - chosen.h * scale) * (opts.alignTop ? 0.08 : 0.35));
-  paintBlocks(ctx, chosen.blocks, box, color, scale, top, cx, maxW);
+  const top = box.y + padY + Math.max(0, (innerH - chosen.h * scale) * (opts.alignTop ? 0.06 : 0.3));
+  paintBlocks(ctx, chosen.blocks, box, color, scale, top, leftX, maxW);
 }
 
 function writeLines(ctx, lines, box, color = '#3a3228') {
@@ -808,35 +828,21 @@ await makeSpread(PLATE_FILES[8], note(N9), sketch(s9), 'p8.png', 9);
 /* Last spread — full birthday letter across both pages; wish highlighted at bottom. */
 const LETTER_LEFT = [
   { kind: 'title', text: 'Happy Birthday, Nandhana Azhagiiiyeaaaa!' },
-  { text: 'I spent quite a bit of time thinking about what to write for you.' },
-  { text: 'Your birthday has always been a special day for me.' },
-  { text: 'So, this year, I felt like doing something a little different for you.' },
-  { text: 'And that’s why I made this little surprise.' },
-  { text: 'It might not be something big. It might not even be perfect.' },
-  { text: 'But while making it, I thought about every little detail.' },
-  { text: 'Because the small efforts we make for the people who matter to us always carry a special meaning.' },
-  { text: 'When I think about you, it’s not always the big moments that come to my mind first.' },
-  { text: 'Sometimes, it’s the little things that make a memory beautiful.' },
-  { text: 'I just want you to always be happy.' },
-  { text: 'I hope you achieve everything you’re working towards.' },
-  { text: 'I hope you keep smiling, laughing, and creating lots of beautiful memories.' },
-  { text: 'And one day, when you look back at this birthday…' },
-  { text: 'I hope this little surprise reminds you of one simple thing.' },
-  { text: 'That someone took a little extra time for you, thought about every small detail, and made something just for you.' },
+  { text: 'I spent quite a bit of time thinking about what to write for you. Your birthday has always been a special day for me. So, this year, I felt like doing something a little different for you — and that’s why I made this little surprise.' },
+  { text: 'It might not be something big. It might not even be perfect. But while making it, I thought about every little detail. Because the small efforts we make for the people who matter to us always carry a special meaning.' },
+  { text: 'When I think about you, it’s not always the big moments that come to my mind first. Sometimes, it’s the little things that make a memory beautiful.' },
+  { text: 'I just want you to always be happy. I hope you achieve everything you’re working towards. I hope you keep smiling, laughing, and creating lots of beautiful memories.' },
+  { text: 'And one day, when you look back at this birthday, I hope this little surprise reminds you of one simple thing — that someone took a little extra time for you, thought about every small detail, and made something just for you.' },
   { text: 'Because you’re not just another person. You’re someone who will always have a special place in my life.' },
 ];
 
 const LETTER_RIGHT = [
-  { text: 'And I don’t think I need to explain that any further.' },
-  { text: 'Sometimes, the most beautiful things are the ones we understand without having to explain them.' },
-  { text: 'Keep smiling. Always stay the same crazy, cute, jolly, and wonderful person you are.' },
-  { text: 'And one more thing… thank you for being such a beautiful memory in my life.' },
-  { text: 'I’m doing all this not because of love or because I expect anything from you.' },
-  { text: 'It’s simply because some people become special in our lives in a way that doesn’t need a relationship or a label. And for me, you’re one of those people.' },
+  { text: 'And I don’t think I need to explain that any further. Sometimes, the most beautiful things are the ones we understand without having to explain them.' },
+  { text: 'Keep smiling. Always stay the same crazy, cute, jolly, and wonderful person you are. And one more thing… thank you for being such a beautiful memory in my life.' },
+  { text: 'I’m doing all this not because of love or because I expect anything from you. It’s simply because some people become special in our lives in a way that doesn’t need a relationship or a label. And for me, you’re one of those people.' },
   { text: 'Some people will always remain special, no matter how life changes. And you’ll always be one of them.' },
   { kind: 'wishHead', text: 'Once again, Happiest Birthday, Nandhana!' },
-  { kind: 'wish', text: 'May this new year of your life bring you endless happiness, beautiful surprises, success in everything you do, and countless reasons to smile.' },
-  { kind: 'wish', text: 'May all your dreams come true, may you always find happiness in the little things, and may life give you all the beautiful things you truly deserve.' },
+  { kind: 'wish', text: 'May this new year of your life bring you endless happiness, beautiful surprises, success in everything you do, and countless reasons to smile. May all your dreams come true, may you always find happiness in the little things, and may life give you all the beautiful things you truly deserve.' },
   { kind: 'wish', text: 'Stay happy, stay crazy, stay cute, and keep being the wonderful person you are.' },
   { kind: 'wishClose', text: 'Wishing you a beautiful birthday and an even more beautiful year ahead!' },
 ];
